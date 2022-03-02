@@ -175,7 +175,7 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     :param feature_paths: paths to the feature names, e.g.
         ['conv_blocks_context.6.blocks.1.conv']
     :param targets_path: The directory where targets are stored for 
-        'pred_dataset_name',until 'labelsTr'  
+        'pred_dataset_name', until 'labelsTr'  
     :param label: label for the class of interest
     :param nr_labels: number of classes in the segmentation masks (for 
         one foreground and background nr_labels == 2)

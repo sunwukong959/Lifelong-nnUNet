@@ -59,12 +59,12 @@ def per_subject_max_softmax_uncertainty(eval_path, base_names, outputs_path, nr_
     except:
         uncertainties_dict = dict()
         for base_name in tqdm(base_names):
-            try:
-                uncertainty = softmax_uncertainty(outputs_path, base_name, nr_labels=nr_labels, part=part, norm=norm)
-                uncertainty = average_uncertainty(uncertainty)
-                uncertainties_dict[base_name] = float(uncertainty)
-            except:
-                uncertainties_dict[base_name] = 'Error'
+            #try:
+            uncertainty = softmax_uncertainty(outputs_path, base_name, nr_labels=nr_labels, part=part, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
         with open(full_path, 'w') as json_file:
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
@@ -77,12 +77,12 @@ def per_subject_temp_scaled_uncertainty(eval_path, base_names, non_softmaxed_out
     except:
         uncertainties_dict = dict()
         for base_name in tqdm(base_names):
-            try:
-                uncertainty = temp_scaled_uncertainty(non_softmaxed_outputs_path, base_name, temp=temp, nr_labels=nr_labels, part=part, norm=norm)
-                uncertainty = average_uncertainty(uncertainty)
-                uncertainties_dict[base_name] = float(uncertainty)
-            except:
-                uncertainties_dict[base_name] = 'Error'
+            #try:
+            uncertainty = temp_scaled_uncertainty(non_softmaxed_outputs_path, base_name, temp=temp, nr_labels=nr_labels, part=part, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
         with open(full_path, 'w') as json_file:
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
@@ -95,12 +95,12 @@ def per_subject_kl_uncertainty(eval_path, base_names, outputs_path, nr_labels=2,
     except:
         uncertainties_dict = dict()
         for base_name in tqdm(base_names):
-            try:
-                uncertainty = kl_uncertainty(outputs_path, base_name, nr_labels=nr_labels, part=part, norm=norm)
-                uncertainty = average_uncertainty(uncertainty)
-                uncertainties_dict[base_name] = float(uncertainty)
-            except:
-                uncertainties_dict[base_name] = 'Error'
+            #try:
+            uncertainty = kl_uncertainty(outputs_path, base_name, nr_labels=nr_labels, part=part, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
         with open(full_path, 'w') as json_file:
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
@@ -113,12 +113,12 @@ def per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, labe
     except:
         uncertainties_dict = dict()
         for base_name in tqdm(base_names):
-            try:
-                uncertainty = dropout_uncertainty(MC_outputs_path, base_name, label=label, norm=norm)
-                uncertainty = average_uncertainty(uncertainty)
-                uncertainties_dict[base_name] = float(uncertainty)
-            except:
-                uncertainties_dict[base_name] = 'Error'
+            #try:
+            uncertainty = dropout_uncertainty(MC_outputs_path, base_name, label=label, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
         with open(full_path, 'w') as json_file:
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
@@ -131,12 +131,12 @@ def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, fe
     except:
         uncertainties_dict = dict()
         for base_name in base_names:
-            try:
-                uncertainty = mahalanobis_uncertainty(features_path, base_name, feature_key, norm=norm)
-                uncertainty = average_uncertainty(uncertainty)
-                uncertainties_dict[base_name] = float(uncertainty)
-            except:
-                uncertainties_dict[base_name] = 'Error'
+            #try:
+            uncertainty = mahalanobis_uncertainty(features_path, base_name, feature_key, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
         with open(full_path, 'w') as json_file:
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict

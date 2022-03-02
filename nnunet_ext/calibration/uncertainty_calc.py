@@ -19,9 +19,10 @@ def softmax_uncertainty(outputs_path, base_name, nr_labels=2, part=0,
     """
     uncertainty = []
     for label in range(nr_labels):
-        uncertainty_path = os.path.join(outputs_path, '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-        label_uncertainty = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
-        uncertainty.append(label_uncertainty)
+        if label > 0:
+            uncertainty_path = os.path.join(outputs_path, '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+            label_uncertainty = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+            uncertainty.append(label_uncertainty)
     uncertainty = np.stack(uncertainty, axis=0)
     uncertainty = np.max(uncertainty, axis=0)
     if norm:
@@ -71,10 +72,11 @@ def kl_uncertainty(outputs_path, base_name, nr_labels=2, part=0, norm=False,
     except:
         label_outputs = []
         for label in range(nr_labels):
-            uncertainty_path = os.path.join(outputs_path, 
-                '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-            label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
-            label_outputs.append(label_output)
+            if label > 0:
+                uncertainty_path = os.path.join(outputs_path, 
+                    '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+                label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+                label_outputs.append(label_output)
         kl_shape = label_outputs[0].shape
         kl = np.zeros(kl_shape)
         for ix in np.ndindex(kl_shape):
@@ -92,10 +94,11 @@ def temp_scaled_uncertainty(non_softmaxed_outputs_path, base_name, temp=1000,
     """
     outputs = []
     for label in range(nr_labels):
-        output_path = os.path.join(non_softmaxed_outputs_path, 
-            '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-        output = utils.load_nifty(output_path)[0].astype(np.float16)
-        outputs.append(output)
+        if label > 0:
+            output_path = os.path.join(non_softmaxed_outputs_path, 
+                '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+            output = utils.load_nifty(output_path)[0].astype(np.float16)
+            outputs.append(output)
     outputs = np.stack(outputs, axis=0)
     outputs /= temp
     outputs = softmax(outputs, axis=0)
