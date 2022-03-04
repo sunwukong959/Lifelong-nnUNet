@@ -32,7 +32,7 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
         spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, norm=False)
     
     print('\nGetting Temperature-scaled uncertainties')
-    if 'TempScaling_10' in methods:
+    if 'TempScaling' in methods:
         temp_scaled_uncertainty_dict = dict()
         for temp in temperatures:
             temp_scaled_uncertainty_dict[temp] = per_subject_temp_scaled_uncertainty(eval_path, base_names, non_softmaxed_outputs_path, temp=temp, nr_labels=nr_labels, part=part, norm=False)
@@ -50,7 +50,7 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
             data.append([base_name, dice, iou, softmax_uncertainty_dict[base_name], 'MaxSoftmax'])
         if 'MCDropout' in methods:
             data.append([base_name, dice, iou, mcdo_uncertainty_dict[base_name], 'MCDropout'])
-        if 'TempScaling_10' in methods:
+        if 'TempScaling' in methods:
             for temp in temperatures:
                 data.append([base_name, dice, iou, temp_scaled_uncertainty_dict[temp][base_name], 'TempScaling_{}'.format(temp)])
         if 'KL' in methods:
