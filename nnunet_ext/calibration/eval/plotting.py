@@ -8,23 +8,30 @@ import pylab as plt
 import seaborn as sns
 import pandas as pd
 
-def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name='uncertainty_vs_dice', boundary=0.5, save_path=None, figsize=(4, 2), x_norm=False, y_norm=True, ending='.png'):
+def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name='uncertainty_vs_dice', boundary=0.5, save_path=None, figsize=(4, 2), x_norm=False, y_norm=True, ending='.png', normalize=False):
 
     if hue == 'Dataset':
-        my_palette=['#264653','#e76f51', '#2a9d8f', '#e9c46a']
+        my_palette=['#264653','#e76f51', '#2a9d8f', '#e9c46a','green', 'blue', 'red']
+        markers=True
     else:
         my_palette=['#262626','#f4a261']
+        markers={"ID": "o", "OOD": "^"}
+
+    if normalize:
+        x_item = 'NormedUncertainty'
+    else:
+        x_item = 'Uncertainty'
 
     plt.figure(figsize=figsize)
     with sns.axes_style("whitegrid"):
-        ax = sns.scatterplot(x='NormedUncertainty',
+        ax = sns.scatterplot(x=x_item,
             y=metric,
             hue=hue,
             style=hue,
             alpha=1.,
             s=15,
             palette=my_palette,
-            markers={"ID": "o", "OOD": "^"},
+            markers=markers,
             edgecolor='gray',
             data=df)
     # Format titles

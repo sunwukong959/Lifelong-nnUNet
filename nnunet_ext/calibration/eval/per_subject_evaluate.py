@@ -13,40 +13,50 @@ from nnunet_ext.calibration.eval.per_voxel_evaluate import comp_metrices_new, av
 
 def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path, 
     targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, 
-    features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[10, 100, 1000]):
+    features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[10, 100, 1000], methods=None):
     
     print('\nGetting segmentation results')
     eval_dict = per_subject_evaluation(eval_path, base_names, predictions_path, targets_path, label=label, avg=True)
     
     print('\nGetting MaxSoftmax uncertainties')
-    softmax_uncertainty_dict = per_subject_max_softmax_uncertainty(eval_path, base_names, outputs_path, nr_labels=nr_labels, part=part)
+    if 'MaxSoftmax' in methods:
+        softmax_uncertainty_dict = per_subject_max_softmax_uncertainty(eval_path, base_names, outputs_path, nr_labels=nr_labels, part=part)
     
     print('\nGetting MCDropout uncertainties')
-    mcdo_uncertainty_dict = per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, label=label, norm=False)
+    if 'MCDropout' in methods:
+        mcdo_uncertainty_dict = per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, label=label, norm=False)
     
     print('\nGetting Mahalanobis uncertainties')
-    spatial_mahal_uncertainty_dict = dict()
-    spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, norm=False)
+    if 'Mahalanobis' in methods:
+        spatial_mahal_uncertainty_dict = dict()
+        spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, norm=False)
     
     print('\nGetting Temperature-scaled uncertainties')
-    temp_scaled_uncertainty_dict = dict()
-    for temp in temperatures:
-        temp_scaled_uncertainty_dict[temp] = per_subject_temp_scaled_uncertainty(eval_path, base_names, non_softmaxed_outputs_path, temp=temp, nr_labels=nr_labels, part=part, norm=False)
+    if 'TempScaling_10' in methods:
+        temp_scaled_uncertainty_dict = dict()
+        for temp in temperatures:
+            temp_scaled_uncertainty_dict[temp] = per_subject_temp_scaled_uncertainty(eval_path, base_names, non_softmaxed_outputs_path, temp=temp, nr_labels=nr_labels, part=part, norm=False)
     
     print('\nGetting KL divergence uncertainties')
-    kl_uncertainty_dict = per_subject_kl_uncertainty(eval_path, base_names, outputs_path, nr_labels=nr_labels, part=part, norm=False)
+    if 'KL' in methods:
+        kl_uncertainty_dict = per_subject_kl_uncertainty(eval_path, base_names, outputs_path, nr_labels=nr_labels, part=part, norm=False)
 
     # Design a Pandas dataframe with this content
     data = []
     for base_name in base_names:
         dice = eval_dict[base_name]['Dice']
         iou = eval_dict[base_name]['IoU']
-        data.append([base_name, dice, iou, softmax_uncertainty_dict[base_name], 'MaxSoftmax'])
-        data.append([base_name, dice, iou, mcdo_uncertainty_dict[base_name], 'MCDropout'])
-        for temp in temperatures:
-            data.append([base_name, dice, iou, temp_scaled_uncertainty_dict[temp][base_name], 'TempScaling_{}'.format(temp)])
-        data.append([base_name, dice, iou, kl_uncertainty_dict[base_name], 'KL'])
-        data.append([base_name, dice, iou, spatial_mahal_uncertainty_dict[feature_key][base_name], 'Mahalanobis'])
+        if 'MaxSoftmax' in methods:
+            data.append([base_name, dice, iou, softmax_uncertainty_dict[base_name], 'MaxSoftmax'])
+        if 'MCDropout' in methods:
+            data.append([base_name, dice, iou, mcdo_uncertainty_dict[base_name], 'MCDropout'])
+        if 'TempScaling_10' in methods:
+            for temp in temperatures:
+                data.append([base_name, dice, iou, temp_scaled_uncertainty_dict[temp][base_name], 'TempScaling_{}'.format(temp)])
+        if 'KL' in methods:
+            data.append([base_name, dice, iou, kl_uncertainty_dict[base_name], 'KL'])
+        if 'Mahalanobis' in methods:
+            data.append([base_name, dice, iou, spatial_mahal_uncertainty_dict[feature_key][base_name], 'Mahalanobis'])
 
     df = pd.DataFrame(data, columns=['Subject', 'Dice', 'IoU', 'Uncertainty', 'Method'])
     return df

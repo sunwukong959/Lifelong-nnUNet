@@ -148,7 +148,7 @@ def mahalanobis_uncertainty(features_path, base_name, feature_key,
     return aggregated_results
 
 def estimate_multivariate_gaussian_save_distances(features_root_path, 
-    train_ds_names, store_ds_names, feature_names=None):
+    train_ds_names, store_ds_names, feature_names=None, files_name=''):
     r"""Estimates a distribution using the training data and saves the distances
     for all other provided datasets.
     """
@@ -196,7 +196,7 @@ def estimate_multivariate_gaussian_save_distances(features_root_path,
             full_path = os.path.join(features_path, base_name)
             features = pickle.load(open(full_path, 'rb'))
             # Initialize distances dictionary
-            distances_name = base_name.replace('.pkl', '_distances.pkl')
+            distances_name = base_name.replace('.pkl', files_name+'_distances.pkl')
             distances_full_path = os.path.join(features_path, distances_name)
             distances = dict()
             for patch_key, value in features.items():

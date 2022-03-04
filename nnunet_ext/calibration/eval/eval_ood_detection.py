@@ -12,6 +12,14 @@ import nnunet_ext.calibration.eval.plotting as plotting
 # If the metric is a "confidence", invert
 invert_uncertainty = ['MaxSoftmax', 'KL', 'TempScaling']
 
+def fetch_validation_cases(ds_names):
+    val_subject_names = []
+    for ds_name in ds_names:
+        path=os.path.join(os.environ['nnUNet_raw_data_base'], 'nnUNet_raw_data', ds_name, 'labelsTr')
+        subjects = [f.replace('.nii.gz', '') for f in os.listdir(path)]
+        val_subject_names += subjects
+    return val_subject_names
+
 def results_dict_to_df(df_items):
     r"""Convert again to DF for easier plotting
     """
@@ -21,19 +29,19 @@ def results_dict_to_df(df_items):
         df_data.append([df_item[col] for col in columns])
     return pd.DataFrame(df_data, columns=columns)
 
-def load_results(eval_storage_path, method='MaxSoftmax', id_test=[], ood=[], 
+def load_results(eval_storage_path, method='MaxSoftmax', id_val=[], id_test=[], ood=[], 
     nr_val_cases=4):
     r"""Fetches results in df form and build a joint dictionary"""
+    validation_cases = fetch_validation_cases(id_val)
     all_dfs_items = []
-    validation_cases = None
-    for ds_key in id_test + ood:
+    for ds_key in id_val + id_test + ood:
         eval_path = os.path.join(eval_storage_path, ds_key)
         df = pd.read_csv(os.path.join(eval_path, 'df.csv'), sep='\t')
         df = df[df.Method == method]
         df[["Uncertainty", "Dice", "IoU"]] = df[["Uncertainty", "Dice", "IoU"]].apply(pd.to_numeric)
         df_items = list(df.set_index(df.Subject).T.to_dict().values())
         # Pick validation cases from the ID Test dataset
-        if validation_cases is None:
+        if len(validation_cases) < 1:
             validation_cases = [df_item['Subject'] for df_item in df_items]
             validation_cases = random.choices(validation_cases, k=nr_val_cases)
         # Make relevant modifications to the data structure
@@ -45,7 +53,7 @@ def load_results(eval_storage_path, method='MaxSoftmax', id_test=[], ood=[],
                 df_items[ix]['Dist'] = 'OOD'
             else:
                 df_items[ix]['Dist'] = 'ID'
-            if ds_key in id_test and df_items[ix]['Subject'] in validation_cases:
+            if (ds_key in id_val) or (ds_key in id_test and df_items[ix]['Subject'] in validation_cases):
                 df_items[ix]['Split'] = 'Val'
             else:
                 df_items[ix]['Split'] = 'Test'
@@ -182,7 +190,7 @@ def calibration_error(items, metric='Dice', nr_bins=10):
     return ece
 
 def evaluate_uncertainty_method(eval_storage_path, results_name='results', 
-    methods=None, id_test=[], ood=[]):
+    methods=None, id_test=[], ood=[], id_val=[]):
     r"""Returns a number of measures to assess OOD detection and calibration quality.
     """
     if methods is None:
@@ -190,7 +198,7 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
     df_data = []
     for method in methods:
         items = load_results(eval_storage_path=eval_storage_path, method=method, 
-            id_test=id_test, ood=ood)
+            id_val=id_val, id_test=id_test, ood=ood)
 
         # Calibration error
         ece = calibration_error(items, metric='Dice')
@@ -214,14 +222,15 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
     return df
 
 def plot_method_scatter(df_with_boundary, eval_storage_path, method, id_test, 
-    ood, better_ds_names=None):
+    ood, id_val=[], better_ds_names=None, normalize=False):
     r"""Plot a scatter of the uncertainty against the Dice
     """
     boundary = float(df_with_boundary.loc[df_with_boundary['Method'] == method]['Boundary'])
     items = load_results(eval_storage_path=eval_storage_path, 
-        method=method, id_test=id_test, ood=ood)
-    set_normed_uncertainties(items)
-    boundary = norm_boundary(items, boundary)
+        method=method, id_val=id_val, id_test=id_test, ood=ood)
+    if normalize:
+        set_normed_uncertainties(items)
+        boundary = norm_boundary(items, boundary)
     items = [item for item in items if item['Split'] == 'Test']
     
     if better_ds_names:
@@ -229,9 +238,9 @@ def plot_method_scatter(df_with_boundary, eval_storage_path, method, id_test,
             item['Dataset'] = better_ds_names[item['Dataset']]
 
     df = results_dict_to_df(items)
-    plotting.plot_uncertainty_performance(df, metric='Dice', hue='Dist', 
+    plotting.plot_uncertainty_performance(df, metric='Dice', hue='Dataset', 
         style='Split', boundary=boundary, 
-        save_name='uncertainty_vs_dice_{}'.format(method), save_path=eval_storage_path)
+        save_name='uncertainty_vs_dice_{}'.format(method), save_path=eval_storage_path, normalize=normalize)
 
 def plot_dataset_performance_boxplot(eval_storage_path, id_test, ood, better_ds_names=None):
     r"""Plot the base performance of the method.
@@ -257,11 +266,11 @@ def plot_dataset_performance_boxplot(eval_storage_path, id_test, ood, better_ds_
     plotting.boxplot(df, x='Metric', y='Value', hue='Dataset', 
         save_path=eval_storage_path, file_name='boxplot_performance.png')
 
-def plot_separation_boxplot(eval_storage_path, methods, id_test, ood, better_method_names=None):
+def plot_separation_boxplot(eval_storage_path, methods, id_test, ood, id_val=[], better_method_names=None):
     all_items = []
     for method in methods:
         items = load_results(eval_storage_path=eval_storage_path, 
-        method=method, id_test=id_test, ood=ood)
+        method=method, id_val=id_val, id_test=id_test, ood=ood)
         set_normed_uncertainties(items)
         if better_method_names:
             if method in better_method_names:

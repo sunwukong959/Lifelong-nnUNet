@@ -147,7 +147,7 @@ def nnUNet_extract_features(inputs_path, pred_dataset_name, feature_paths, task_
                     output_features_path=output_features_path, feature_paths=feature_paths)
 
 def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
-    feature_paths=None):
+    feature_paths=None, files_name=''):
     r"""Estimate a multivariate Gaussian distribution and save distances to that
     distribution.
     :param task_id: Task (dataset name) of the pre-trained model that is loaded
@@ -163,10 +163,10 @@ def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
     features_root_path = os.path.join(results_path, 'features', task_id, str(fold_ix))
     estimate_multivariate_gaussian_save_distances(features_root_path, 
         train_ds_names=train_ds_names, store_ds_names=store_ds_names, 
-        feature_names=feature_paths)
+        feature_names=feature_paths, files_name=files_name)
 
 def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix, 
-    feature_paths, targets_path=None, label=1, nr_labels=2, temperatures=[10]):
+    feature_paths, targets_path=None, label=1, nr_labels=2, temperatures=[10], methods=None):
     r"""Extract uncertainty values with several methods.
     :param pred_dataset_name: name of the dataset for which outputs are to be
         extracted (name of images stored in inputs_path)
@@ -197,7 +197,7 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
         predictions_path=predictions_path, targets_path=targets_path, outputs_path=outputs_path, 
         non_softmaxed_outputs_path=non_softmaxed_outputs_path, MC_outputs_path=MC_outputs_path, 
         features_path=output_features_path, feature_key=feature_paths[0],
-        label=label, nr_labels=nr_labels, part=fold_ix, temperatures=temperatures)
+        label=label, nr_labels=nr_labels, part=fold_ix, temperatures=temperatures, methods=methods)
     df.to_csv(os.path.join(eval_path, 'df.csv'), sep='\t')
 
 
