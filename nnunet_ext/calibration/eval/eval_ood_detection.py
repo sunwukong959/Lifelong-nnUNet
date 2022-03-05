@@ -238,7 +238,7 @@ def plot_method_scatter(df_with_boundary, eval_storage_path, method, id_test,
             item['Dataset'] = better_ds_names[item['Dataset']]
 
     df = results_dict_to_df(items)
-    plotting.plot_uncertainty_performance(df, metric='Dice', hue='Dataset', 
+    plotting.plot_uncertainty_performance(df, metric='Dice', hue='Dist', 
         style='Split', boundary=boundary, 
         save_name='uncertainty_vs_dice_{}'.format(method), save_path=eval_storage_path, normalize=normalize)
 

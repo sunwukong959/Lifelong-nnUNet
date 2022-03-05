@@ -12,6 +12,7 @@ from scipy.ndimage.filters import gaussian_filter
 from math import log2
 from nnunet_ext.calibration.mahalanobis.density_estimation import GaussianDensityEstimator
 from scipy.special import softmax
+from multiprocessing import Pool
 
 def softmax_uncertainty(outputs_path, base_name, nr_labels=2, part=0, 
     norm=False, invert=False, store_mask=False):
@@ -19,10 +20,9 @@ def softmax_uncertainty(outputs_path, base_name, nr_labels=2, part=0,
     """
     uncertainty = []
     for label in range(nr_labels):
-        if label > 0:
-            uncertainty_path = os.path.join(outputs_path, '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-            label_uncertainty = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
-            uncertainty.append(label_uncertainty)
+        uncertainty_path = os.path.join(outputs_path, '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+        label_uncertainty = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+        uncertainty.append(label_uncertainty)
     uncertainty = np.stack(uncertainty, axis=0)
     uncertainty = np.max(uncertainty, axis=0)
     if norm:
@@ -72,11 +72,10 @@ def kl_uncertainty(outputs_path, base_name, nr_labels=2, part=0, norm=False,
     except:
         label_outputs = []
         for label in range(nr_labels):
-            if label > 0:
-                uncertainty_path = os.path.join(outputs_path, 
-                    '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-                label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
-                label_outputs.append(label_output)
+            uncertainty_path = os.path.join(outputs_path, 
+                '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+            label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+            label_outputs.append(label_output)
         kl_shape = label_outputs[0].shape
         kl = np.zeros(kl_shape)
         for ix in np.ndindex(kl_shape):
@@ -87,6 +86,24 @@ def kl_uncertainty(outputs_path, base_name, nr_labels=2, part=0, norm=False,
             np.save(full_path, kl)
         return kl
 
+def energy_scoring(non_softmaxed_outputs_path, base_name, temp=1000, 
+    nr_labels=2, part=0, norm=False, invert=False, store_mask=False):
+    r"""Applies Energy Scoring.
+    """
+    outputs = []
+    for label in range(nr_labels):
+        output_path = os.path.join(non_softmaxed_outputs_path, 
+            '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+        output = utils.load_nifty(output_path)[0].astype(np.float16)
+        outputs.append(output)
+    outputs = np.stack(outputs, axis=0)
+    outputs /= temp
+    outputs = softmax(outputs, axis=0)
+    uncertainty = np.max(outputs, axis=0)
+    if norm:
+        uncertainty = utils.normalize(uncertainty)
+    return uncertainty
+
 def temp_scaled_uncertainty(non_softmaxed_outputs_path, base_name, temp=1000, 
     nr_labels=2, part=0, norm=False, invert=False, store_mask=False):
     r"""Applies temperature scaling before considering the max. softmax as voxel
@@ -94,11 +111,10 @@ def temp_scaled_uncertainty(non_softmaxed_outputs_path, base_name, temp=1000,
     """
     outputs = []
     for label in range(nr_labels):
-        if label > 0:
-            output_path = os.path.join(non_softmaxed_outputs_path, 
-                '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-            output = utils.load_nifty(output_path)[0].astype(np.float16)
-            outputs.append(output)
+        output_path = os.path.join(non_softmaxed_outputs_path, 
+            '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+        output = utils.load_nifty(output_path)[0].astype(np.float16)
+        outputs.append(output)
     outputs = np.stack(outputs, axis=0)
     outputs /= temp
     outputs = softmax(outputs, axis=0)
@@ -125,8 +141,8 @@ def _get_gaussian(patch_size, sigma_scale=1. / 8) -> np.ndarray:
     return gaussian_importance_map
 
 def mahalanobis_uncertainty(features_path, base_name, feature_key, 
-    patch_size=[28, 256, 256], use_gaussian=False, norm=False):
-    distances_full_path = os.path.join(features_path, base_name + '_distances.pkl')
+    patch_size=[28, 256, 256], use_gaussian=False, norm=False, dist_files_name=''):
+    distances_full_path = os.path.join(features_path, base_name + dist_files_name + '_distances.pkl')
     feature_distances = pickle.load(open(distances_full_path, 'rb'))
     # Weight middle more heavily
     if use_gaussian:
@@ -146,6 +162,28 @@ def mahalanobis_uncertainty(features_path, base_name, feature_key,
     if norm:
         aggregated_results = utils.normalize(aggregated_results)
     return aggregated_results
+
+def get_feature_estimator(train_features):
+    # Build arrays with shape (#samples, dims)
+    train_features = np.stack(train_features)
+    estimator = GaussianDensityEstimator()
+    estimator.fit(train_features)
+    return estimator
+
+def save_distances_subject(base_name, features_path, feature_names, estimators, files_name=''):
+    full_path = os.path.join(features_path, base_name)
+    features = pickle.load(open(full_path, 'rb'))
+    # Initialize distances dictionary
+    distances_name = base_name.replace('.pkl', files_name+'_distances.pkl')
+    distances_full_path = os.path.join(features_path, distances_name)
+    distances = dict()
+    for patch_key, value in features.items():
+        distances[patch_key] = dict()
+        for feature_name in feature_names:
+            feature_value = value[feature_name]
+            feature_value = feature_value.flatten()
+            distances[patch_key][feature_name] = estimators[feature_name].get_mahalanobis(feature_value)
+    pickle.dump(distances, open(distances_full_path, "wb"))
 
 def estimate_multivariate_gaussian_save_distances(features_root_path, 
     train_ds_names, store_ds_names, feature_names=None, files_name=''):
@@ -173,7 +211,7 @@ def estimate_multivariate_gaussian_save_distances(features_root_path,
 
     # Distances are calculated for these features
     if feature_names is None:
-        feature_names = train_features.keys()
+        feature_names = list(train_features.keys())
 
     # Fit multivariate Gaussian estimation
     print('Fitting estimators features')
@@ -183,6 +221,11 @@ def estimate_multivariate_gaussian_save_distances(features_root_path,
         train_features[feature_name] = np.stack(train_features[feature_name])
         estimators[feature_name] = GaussianDensityEstimator()
         estimators[feature_name].fit(train_features[feature_name])
+    #p = Pool(8)
+    #estimators_lst = p.map(get_feature_estimator, [train_features[feature_name] for feature_name in feature_names])
+    #p.close()
+    #p.join()
+    #estimators = {feature_name: estimator for feature_name, estimator in zip(feature_names, estimators_lst)}
 
     # Finally, for each other training set create a directory similar to the 
     # features but storing distances for each patch instead of features
@@ -192,7 +235,11 @@ def estimate_multivariate_gaussian_save_distances(features_root_path,
         base_names = list(os.listdir(features_path))
         base_names = [x for x in base_names if 'pkl' in x 
             and 'plans' not in x and 'distances' not in x]
-        for base_name in base_names:
+        #p = Pool(8)
+        #p.starmap(save_distances_subject, [(base_name, features_path, feature_names, estimators, files_name) for base_name in base_names])
+        #p.close()
+        #p.join()
+        for base_name in tqdm(base_names):
             full_path = os.path.join(features_path, base_name)
             features = pickle.load(open(full_path, 'rb'))
             # Initialize distances dictionary

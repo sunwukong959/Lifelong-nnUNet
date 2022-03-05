@@ -140,8 +140,8 @@ def save_segmentation_nifti_from_softmax(segmentation_softmax: Union[str, np.nda
             else:
                 name = out_fname[:-7] + "_" + str(i) + ".nii.gz"
             # To save space
-            if i != 0:
-                save_single(seg_old_spacing[i], shape_original_before_cropping, seg_postprogess_fn, properties_dict, non_postprocessed_fname, name, seg_postprocess_args, output_probabilities)
+            #if i != 0:
+            save_single(seg_old_spacing[i], shape_original_before_cropping, seg_postprogess_fn, properties_dict, non_postprocessed_fname, name, seg_postprocess_args, output_probabilities)
 
 def save_single(seg_old_spacing, shape_original_before_cropping, seg_postprogess_fn, properties_dict, non_postprocessed_fname, out_fname, seg_postprocess_args, output_probabilities):
     bbox = properties_dict.get('crop_bbox')

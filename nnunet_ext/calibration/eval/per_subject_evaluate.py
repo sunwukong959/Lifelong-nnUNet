@@ -8,39 +8,46 @@ import json
 from tqdm import tqdm
 import pandas as pd
 from nnunet_ext.calibration import utils
-from nnunet_ext.calibration.uncertainty_calc import softmax_uncertainty, dropout_uncertainty, mahalanobis_uncertainty, kl_uncertainty, temp_scaled_uncertainty
+from nnunet_ext.calibration.uncertainty_calc import softmax_uncertainty, dropout_uncertainty, mahalanobis_uncertainty, kl_uncertainty, energy_scoring, temp_scaled_uncertainty
 from nnunet_ext.calibration.eval.per_voxel_evaluate import comp_metrices_new, avg_subject_evaluations
 
 def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path, 
     targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, 
-    features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[10, 100, 1000], methods=None):
+    features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[10, 100, 1000], 
+    methods=None, dist_files_name=''):
     
     print('\nGetting segmentation results')
     eval_dict = per_subject_evaluation(eval_path, base_names, predictions_path, targets_path, label=label, avg=True)
     
-    print('\nGetting MaxSoftmax uncertainties')
     if 'MaxSoftmax' in methods:
+        print('\nGetting MaxSoftmax uncertainties')
         softmax_uncertainty_dict = per_subject_max_softmax_uncertainty(eval_path, base_names, outputs_path, nr_labels=nr_labels, part=part)
     
-    print('\nGetting MCDropout uncertainties')
     if 'MCDropout' in methods:
+        print('\nGetting MCDropout uncertainties')
         mcdo_uncertainty_dict = per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, label=label, norm=False)
     
-    print('\nGetting Mahalanobis uncertainties')
     if 'Mahalanobis' in methods:
+        print('\nGetting Mahalanobis uncertainties')
         spatial_mahal_uncertainty_dict = dict()
-        spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, norm=False)
+        spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, norm=False, dist_files_name=dist_files_name)
     
-    print('\nGetting Temperature-scaled uncertainties')
     if 'TempScaling' in methods:
+        print('\nGetting Temperature-scaled uncertainties')
         temp_scaled_uncertainty_dict = dict()
         for temp in temperatures:
             temp_scaled_uncertainty_dict[temp] = per_subject_temp_scaled_uncertainty(eval_path, base_names, non_softmaxed_outputs_path, temp=temp, nr_labels=nr_labels, part=part, norm=False)
     
-    print('\nGetting KL divergence uncertainties')
     if 'KL' in methods:
+        print('\nGetting KL divergence uncertainties')
         kl_uncertainty_dict = per_subject_kl_uncertainty(eval_path, base_names, outputs_path, nr_labels=nr_labels, part=part, norm=False)
 
+    if 'EnergyScoring' in methods:
+        print('\nGetting Energy Scoring uncertainties')
+        energy_scoring_dict = dict()
+        for temp in temperatures:
+            energy_scoring_dict[temp] = per_subject_energy_scoring(eval_path, base_names, non_softmaxed_outputs_path, temp=temp, nr_labels=nr_labels, part=part, norm=False)
+    
     # Design a Pandas dataframe with this content
     data = []
     for base_name in base_names:
@@ -55,6 +62,9 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
                 data.append([base_name, dice, iou, temp_scaled_uncertainty_dict[temp][base_name], 'TempScaling_{}'.format(temp)])
         if 'KL' in methods:
             data.append([base_name, dice, iou, kl_uncertainty_dict[base_name], 'KL'])
+        if 'EnergyScoring' in methods:
+            for temp in temperatures:
+                data.append([base_name, dice, iou, energy_scoring_dict[temp][base_name], 'EnergyScoring_{}'.format(temp)])
         if 'Mahalanobis' in methods:
             data.append([base_name, dice, iou, spatial_mahal_uncertainty_dict[feature_key][base_name], 'Mahalanobis'])
 
@@ -115,6 +125,24 @@ def per_subject_kl_uncertainty(eval_path, base_names, outputs_path, nr_labels=2,
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
 
+def per_subject_energy_scoring(eval_path, base_names, non_softmaxed_outputs_path, temp=1000, nr_labels=2, part=0, norm=False):
+    full_path = os.path.join(eval_path, 'energy_scoring_{}.json'.format(temp))
+    try:
+        with open(full_path, 'r') as json_file:
+            return json.load(json_file)
+    except:
+        uncertainties_dict = dict()
+        for base_name in tqdm(base_names):
+            #try:
+            uncertainty = energy_scoring(non_softmaxed_outputs_path, base_name, temp=temp, nr_labels=nr_labels, part=part, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
+        with open(full_path, 'w') as json_file:
+            json.dump(uncertainties_dict, json_file)
+        return uncertainties_dict
+
 def per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, label=1, norm=False):
     full_path = os.path.join(eval_path, 'dropout_uncertainties.json')
     try:
@@ -133,8 +161,8 @@ def per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, labe
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
 
-def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key, norm=False):
-    full_path = os.path.join(eval_path, 'mahalanobis_uncertainties_{}_{}.json'.format(feature_key, norm))
+def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key, norm=False, dist_files_name=''):
+    full_path = os.path.join(eval_path, 'mahalanobis_uncertainties_{}_{}_{}.json'.format(feature_key, norm, dist_files_name))
     try:
         with open(full_path, 'r') as json_file:
             return json.load(json_file)
@@ -142,7 +170,7 @@ def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, fe
         uncertainties_dict = dict()
         for base_name in base_names:
             #try:
-            uncertainty = mahalanobis_uncertainty(features_path, base_name, feature_key, norm=norm)
+            uncertainty = mahalanobis_uncertainty(features_path, base_name, feature_key, norm=norm, dist_files_name=dist_files_name)
             uncertainty = average_uncertainty(uncertainty)
             uncertainties_dict[base_name] = float(uncertainty)
             #except:
