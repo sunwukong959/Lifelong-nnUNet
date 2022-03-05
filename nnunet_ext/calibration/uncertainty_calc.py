@@ -93,24 +93,24 @@ def kl_uncertainty(outputs_path, base_name, nr_labels=2, part=0, norm=False,
     confidence for each voxel.
     """
     full_path = os.path.join(outputs_path, '{}_kl_uncertainty.npy'.format(base_name))
-    try:
-        return np.load(full_path)
-    except:
-        label_outputs = []
-        for label in range(nr_labels):
-            uncertainty_path = os.path.join(outputs_path, 
-                '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-            label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
-            label_outputs.append(label_output)
-        kl_shape = label_outputs[0].shape
-        kl = np.zeros(kl_shape)
-        for ix in np.ndindex(kl_shape):
-            kl[ix] = _kl_div_from_uniform([x[ix] for x in label_outputs])
-        if norm:
-            kl = utils.normalize(kl)
-        if store_npy:
-            np.save(full_path, kl)
-        return kl
+    #try:
+    #    return np.load(full_path)
+    #except:
+    label_outputs = []
+    for label in range(nr_labels):
+        uncertainty_path = os.path.join(outputs_path, 
+            '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
+        label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+        label_outputs.append(label_output)
+    kl_shape = label_outputs[0].shape
+    kl = np.zeros(kl_shape)
+    for ix in np.ndindex(kl_shape):
+        kl[ix] = _kl_div_from_uniform([x[ix] for x in label_outputs])
+    if norm:
+        kl = utils.normalize(kl)
+    if store_npy:
+        np.save(full_path, kl)
+    return kl
 
 def energy_scoring(non_softmaxed_outputs_path, base_name, temp=1000, 
     nr_labels=2, part=0, norm=False, invert=False, store_mask=False):
