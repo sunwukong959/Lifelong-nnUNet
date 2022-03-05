@@ -11,7 +11,7 @@ import ast
 from scipy.ndimage.filters import gaussian_filter
 from math import log2
 from nnunet_ext.calibration.mahalanobis.density_estimation import GaussianDensityEstimator
-from scipy.special import softmax
+from scipy.special import softmax, logsumexp
 from multiprocessing import Pool
 
 def softmax_uncertainty(outputs_path, base_name, nr_labels=2, part=0, 
@@ -98,8 +98,7 @@ def energy_scoring(non_softmaxed_outputs_path, base_name, temp=1000,
         outputs.append(output)
     outputs = np.stack(outputs, axis=0)
     outputs /= temp
-    outputs = softmax(outputs, axis=0)
-    uncertainty = np.max(outputs, axis=0)
+    uncertainty = logsumexp(outputs, axis=0, keepdims=True) * temp
     if norm:
         uncertainty = utils.normalize(uncertainty)
     return uncertainty
