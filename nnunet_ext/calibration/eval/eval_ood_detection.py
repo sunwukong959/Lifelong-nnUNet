@@ -7,10 +7,11 @@ import numpy as np
 import math
 import random
 import pandas as pd
+from sklearn.metrics import roc_auc_score
 import nnunet_ext.calibration.eval.plotting as plotting
 
 # If the metric is a "confidence", invert
-invert_uncertainty = ['MaxSoftmax', 'KL', 'TempScaling'] + ['TempScaling_{}'.format(t) for t in [10, 100, 1000]]
+invert_uncertainty = ['MaxSoftmax', 'KL', 'TempScaling'] + ['TempScaling_{}'.format(t) for t in [1, 10, 100, 1000]]
 
 def fetch_validation_cases(ds_names):
     val_subject_names = []
@@ -117,6 +118,15 @@ def ood_detection_fpr(items, boundary):
     tp, tn, fn, fp = get_tp_tn_fn_fp(test_items, boundary)
     return fpr(tp, tn, fn, fp)
 
+def auroc_score(items):
+    r"""Area under ROC"""
+    test_items = [x for x in items if x['Split']=='Test']
+    if 'NormedUncertainty' not in items[0]:
+        set_normed_uncertainties(items)
+    labels = [item['Dist']=='ID' for item in test_items]
+    scores = [1 - item['NormedUncertainty'] for item in test_items]
+    return roc_auc_score(labels, scores)
+
 def avg_score_below_boundary(items, boundary, score='Dice'):
     test_items = [x for x in items if x['Split']=='Test']
     test_items_certain = [x for x in test_items if x['Uncertainty']<=boundary]
@@ -194,7 +204,7 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
     r"""Returns a number of measures to assess OOD detection and calibration quality.
     """
     if methods is None:
-        methods=['MaxSoftmax', 'MCDropout', 'KL', 'Mahalanobis', 'TTA'] + ['TempScaling_{}'.format(t) for t in [10, 100, 1000]] + ['EnergyScoring_{}'.format(t) for t in [10, 100, 1000]]
+        methods=['MaxSoftmax', 'MCDropout', 'KL', 'Mahalanobis', 'TTA'] + ['TempScaling_{}'.format(t) for t in [1, 10, 100, 1000]] + ['EnergyScoring_{}'.format(t) for t in [10, 100, 1000]]
     df_data = []
     for method in methods:
         items = load_results(eval_storage_path=eval_storage_path, method=method, 
@@ -209,36 +219,40 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
         # OOD detection measures
         detection_error = ood_detection_error(items, boundary_TPR)
         fpr = ood_detection_fpr(items, boundary_TPR)
+        auroc = auroc_score(items)
         dice_mean, dice_std, coverage = avg_score_below_boundary(items, boundary_TPR, score='Dice')
         iou_mean, iou_std, coverage = avg_score_below_boundary(items, boundary_TPR, score='IoU')
 
-        df_data.append([method, ece, detection_error, fpr, dice_mean, dice_std, 
+        df_data.append([method, ece, detection_error, fpr, auroc, dice_mean, dice_std, 
             iou_mean, iou_std, coverage, boundary_TPR])
         
     # join results for all methods
-    df = pd.DataFrame(df_data, columns=['Method', 'ECE', 'Error', 'FPR', 
+    df = pd.DataFrame(df_data, columns=['Method', 'ECE', 'Error', 'FPR', 'AUROC',
         'Dice_MEAN', 'Dice_STD', 'IoU_MEAN', 'IoU_STD', 'Coverage', 'Boundary'])
     df.to_csv(os.path.join(eval_storage_path, results_name+'.csv'), sep='\t')
     return df
 
 def plot_method_scatter(df_with_boundary, eval_storage_path, method, id_test, 
-    ood, id_val=[], better_ds_names=None, normalize=False):
+    ood, id_val=[], better_ds_names=None, normalize=False, hue='Dist'):
     r"""Plot a scatter of the uncertainty against the Dice
     """
     boundary = float(df_with_boundary.loc[df_with_boundary['Method'] == method]['Boundary'])
     items = load_results(eval_storage_path=eval_storage_path, 
         method=method, id_val=id_val, id_test=id_test, ood=ood)
-    if normalize:
+    if normalize and 'NormedUncertainty' not in items[0]:
         set_normed_uncertainties(items)
         boundary = norm_boundary(items, boundary)
     items = [item for item in items if item['Split'] == 'Test']
     
     if better_ds_names:
+        # Leave only the cases specified in the dict, and prettify names
+        items = [item for item in items if item['Dataset'] in better_ds_names]
         for item in items:
             item['Dataset'] = better_ds_names[item['Dataset']]
 
     df = results_dict_to_df(items)
-    plotting.plot_uncertainty_performance(df, metric='Dice', hue='Dist', 
+
+    plotting.plot_uncertainty_performance(df, metric='Dice', hue=hue, 
         style='Split', boundary=boundary, 
         save_name='uncertainty_vs_dice_{}'.format(method), save_path=eval_storage_path, normalize=normalize)
 
@@ -270,7 +284,7 @@ def plot_separation_boxplot(eval_storage_path, methods, id_test, ood, id_val=[],
     all_items = []
     for method in methods:
         items = load_results(eval_storage_path=eval_storage_path, 
-        method=method, id_val=id_val, id_test=id_test, ood=ood)
+            method=method, id_val=id_val, id_test=id_test, ood=ood)
         set_normed_uncertainties(items)
         if better_method_names:
             if method in better_method_names:

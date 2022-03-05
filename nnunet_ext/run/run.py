@@ -215,7 +215,10 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     eval_storage_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), task_id, str(fold_ix))
     eval_path = os.path.join(eval_storage_path, pred_dataset_name)
     eval_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), task_id, str(fold_ix), pred_dataset_name)
-    base_names = [f[:-7] for f in os.listdir(targets_path) if '.nii.gz' in f]
+    try:
+        base_names = [f[:-7] for f in os.listdir(targets_path) if '.nii.gz' in f]
+    except: # Raw data not in current PC
+        base_names = [f.replace('.pkl', '') for f in os.listdir(output_features_path) if 'plans' not in f and 'distances' not in f]
     df = per_subject_eval_with_uncertainties(eval_path, base_names, 
         predictions_path=predictions_path, targets_path=targets_path, outputs_path=outputs_path, 
         non_softmaxed_outputs_path=non_softmaxed_outputs_path, MC_outputs_path=MC_outputs_path, TTA_outputs_path=TTA_outputs_path,

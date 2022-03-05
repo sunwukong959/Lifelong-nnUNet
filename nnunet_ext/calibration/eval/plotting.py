@@ -11,8 +11,11 @@ import pandas as pd
 def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name='uncertainty_vs_dice', boundary=0.5, save_path=None, figsize=(4, 2), x_norm=False, y_norm=True, ending='.png', normalize=False):
 
     if hue == 'Dataset':
-        my_palette=['#264653','#e76f51', '#2a9d8f', '#e9c46a','green', 'blue', 'red']
-        markers=True
+        # Green
+        my_palette={'Original': '#262626', 'Strong': "#005F73", 'Medium': "#3BE4E7", 'Weak': "#94D2BD"}
+        # Orange
+        #my_palette={'Original': '#262626', 'Strong': "#9B2226", 'Medium': "#CA6702", 'Weak': "#EE9B00"}
+        markers={'Original': "o", 'Strong': "P", 'Medium': "^", 'Weak': "s"}
     else:
         my_palette=['#262626','#f4a261']
         markers={"ID": "o", "OOD": "^"}
