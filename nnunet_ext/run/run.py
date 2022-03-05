@@ -48,7 +48,7 @@ def nnUNet_train(args=None, model_type='3d_fullres', trainer='nnUNetTrainerV2',
 
 def nnUNet_predict(args=None, input_path=None, output_path=None, task_id=None, 
     model_type='3d_fullres', checkpoint='model_final_checkpoint', fold_ix=0, 
-    disable_tta=True, extract_outputs=False, mcdo=-1, softmaxed=True, 
+    disable_tta=True, extract_outputs=False, mcdo=-1, tta=-1, softmaxed=True, 
     output_features_path=None, feature_paths=None):
     r"""Execute the nnUNet_predict command as in setup.py.
     """
@@ -57,15 +57,16 @@ def nnUNet_predict(args=None, input_path=None, output_path=None, task_id=None,
         args += ['-i', input_path]
         args += ['-o', output_path]
         args += ['-t', task_id, '-f', str(fold_ix), '-m', model_type, '-chk', checkpoint]
-        if disable_tta:
+        if disable_tta and tta<0:
             args += ['--disable_tta']
-        if extract_outputs or mcdo>-1:
+        if extract_outputs or mcdo>-1 or tta>-1:
             # Instead of predictions, outputs are extracted
             args += ['--output_probabilities']
         if not softmaxed:
             args += ['--no_softmax']
         # If mcdo > -1, Dropout is activated and output ix "mcdo" is extracted
         args += ['-mcdo', str(mcdo)]
+        args += ['-uncertainty_tta', str(tta)]
         if output_features_path and feature_paths:
             args += ['-of', output_features_path]
             args += ['-feature_paths'] + feature_paths
@@ -122,6 +123,26 @@ def nnUNet_extract_MCDO_outputs(inputs_path, pred_dataset_name, mcdo_ix, task_id
     nnUNet_predict(input_path=inputs_path, output_path=extract_path, task_id=task_id,
         model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
         extract_outputs=True, mcdo=mcdo_ix, softmaxed=True)
+
+def nnUNet_extract_TTA_outputs(inputs_path, pred_dataset_name, tta_ix, task_id,
+    model_type='3d_fullres', checkpoint='model_final_checkpoint', fold_ix=0):
+    r"""Extract model outputs with TTA.
+    :param inputs_path: folder where images are stored
+    :param pred_dataset_name: name of the dataset for which outputs are to be
+        extracted (name of images stored in inputs_path)
+    :param mcdo_ix: index that is given to this specific output, for extracting
+        an MCDO uncertainty, thisshould be executed with several mcdo_ixs
+    :param task_id: Task (dataset name) of the pre-trained model that is loaded
+    :param model_type: Network type, e.g. 3d_fullres
+    :param checkpoint: Checkpoint from which to restore the model state
+    :param fold_ix: Fold of the model instance that is restored, often 0
+    """
+    extract_path = os.path.join(results_path, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
+    assert tta_ix > -1
+    nnUNet_predict(input_path=inputs_path, output_path=extract_path, task_id=task_id,
+        model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
+        extract_outputs=True, mcdo=-1, tta=tta_ix, softmaxed=True)
+
 
 def nnUNet_extract_features(inputs_path, pred_dataset_name, feature_paths, task_id, 
     model_type='3d_fullres', checkpoint='model_final_checkpoint', fold_ix=0):
@@ -188,6 +209,7 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     outputs_path = os.path.join(results_path, 'outputs', task_id, str(fold_ix), pred_dataset_name)
     non_softmaxed_outputs_path = os.path.join(results_path, 'non_softmaxed_outputs', task_id, str(fold_ix), pred_dataset_name)
     MC_outputs_path = os.path.join(results_path, 'MC_outputs', task_id, str(fold_ix), pred_dataset_name)
+    TTA_outputs_path = os.path.join(results_path, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
     features_root_path = os.path.join(results_path, 'features', task_id, str(fold_ix))
     output_features_path = os.path.join(features_root_path, pred_dataset_name)
     eval_storage_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), task_id, str(fold_ix))
@@ -196,7 +218,7 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     base_names = [f[:-7] for f in os.listdir(targets_path) if '.nii.gz' in f]
     df = per_subject_eval_with_uncertainties(eval_path, base_names, 
         predictions_path=predictions_path, targets_path=targets_path, outputs_path=outputs_path, 
-        non_softmaxed_outputs_path=non_softmaxed_outputs_path, MC_outputs_path=MC_outputs_path, 
+        non_softmaxed_outputs_path=non_softmaxed_outputs_path, MC_outputs_path=MC_outputs_path, TTA_outputs_path=TTA_outputs_path,
         features_path=output_features_path, feature_key=feature_paths[0],
         label=label, nr_labels=nr_labels, part=fold_ix, temperatures=temperatures, 
         methods=methods, dist_files_name=dist_files_name)

@@ -55,6 +55,32 @@ def dropout_uncertainty(MC_outputs_path, base_name, label=1, norm=False,
             np.save(full_path, uncertainty)
         return uncertainty
 
+def tta_uncertainty(TTA_outputs_path, base_name, label=1, norm=False,
+    store_npy=False, store_mask=False):
+    r"""Considers the standard deviation between outputs as the uncertainty for 
+    each voxel.
+    """
+    # Gather all relevant files
+    full_path = os.path.join(TTA_outputs_path, '{}_uncertainty.npy'.format(base_name))
+    try:
+        return np.load(full_path)
+    except:
+        uncertainty_file_paths = [f for f in os.listdir(TTA_outputs_path) 
+            if '{}_{}_part'.format(base_name, label) in f]
+        uncertainty_file_paths = [os.path.join(TTA_outputs_path, f) 
+            for f in uncertainty_file_paths]
+        predictions = []
+        for output in uncertainty_file_paths:
+            prediction = utils.load_nifty(output)[0].astype(np.float16)
+            predictions.append(prediction)
+        predictions = np.stack(predictions)
+        uncertainty = np.std(predictions, axis=0)
+        if norm:
+            uncertainty = utils.normalize(uncertainty)
+        if store_npy:
+            np.save(full_path, uncertainty)
+        return uncertainty
+
 def _kl_div_from_uniform(p, smoothing=0.0001):
     p = [float(x) if x>0 else smoothing for x in p]
     p = [x/sum(p) for x in p]
@@ -98,7 +124,7 @@ def energy_scoring(non_softmaxed_outputs_path, base_name, temp=1000,
         outputs.append(output)
     outputs = np.stack(outputs, axis=0)
     outputs /= temp
-    uncertainty = logsumexp(outputs, axis=0, keepdims=True) * temp
+    uncertainty = - logsumexp(outputs, axis=0, keepdims=True) * temp
     if norm:
         uncertainty = utils.normalize(uncertainty)
     return uncertainty

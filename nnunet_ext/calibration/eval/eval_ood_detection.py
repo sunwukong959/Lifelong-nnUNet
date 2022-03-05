@@ -10,7 +10,7 @@ import pandas as pd
 import nnunet_ext.calibration.eval.plotting as plotting
 
 # If the metric is a "confidence", invert
-invert_uncertainty = ['MaxSoftmax', 'KL', 'TempScaling']
+invert_uncertainty = ['MaxSoftmax', 'KL', 'TempScaling'] + ['TempScaling_{}'.format(t) for t in [10, 100, 1000]]
 
 def fetch_validation_cases(ds_names):
     val_subject_names = []
@@ -194,7 +194,7 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
     r"""Returns a number of measures to assess OOD detection and calibration quality.
     """
     if methods is None:
-        methods=['MaxSoftmax', 'MCDropout', 'KL', 'Mahalanobis'] + ['TempScaling_{}'.format(t) for t in [10, 100, 1000]]
+        methods=['MaxSoftmax', 'MCDropout', 'KL', 'Mahalanobis', 'TTA'] + ['TempScaling_{}'.format(t) for t in [10, 100, 1000]] + ['EnergyScoring_{}'.format(t) for t in [10, 100, 1000]]
     df_data = []
     for method in methods:
         items = load_results(eval_storage_path=eval_storage_path, method=method, 

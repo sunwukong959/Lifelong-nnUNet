@@ -8,11 +8,11 @@ import json
 from tqdm import tqdm
 import pandas as pd
 from nnunet_ext.calibration import utils
-from nnunet_ext.calibration.uncertainty_calc import softmax_uncertainty, dropout_uncertainty, mahalanobis_uncertainty, kl_uncertainty, energy_scoring, temp_scaled_uncertainty
+from nnunet_ext.calibration.uncertainty_calc import softmax_uncertainty, dropout_uncertainty, mahalanobis_uncertainty, kl_uncertainty, energy_scoring, temp_scaled_uncertainty, tta_uncertainty
 from nnunet_ext.calibration.eval.per_voxel_evaluate import comp_metrices_new, avg_subject_evaluations
 
 def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path, 
-    targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, 
+    targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, TTA_outputs_path,
     features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[10, 100, 1000], 
     methods=None, dist_files_name=''):
     
@@ -27,6 +27,10 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
         print('\nGetting MCDropout uncertainties')
         mcdo_uncertainty_dict = per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, label=label, norm=False)
     
+    if 'TTA' in methods:
+        print('\nGetting TTA uncertainties')
+        tta_uncertainty_dict = per_subject_tta_uncertainty(eval_path, base_names, TTA_outputs_path, label=label, norm=False)
+
     if 'Mahalanobis' in methods:
         print('\nGetting Mahalanobis uncertainties')
         spatial_mahal_uncertainty_dict = dict()
@@ -57,6 +61,8 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
             data.append([base_name, dice, iou, softmax_uncertainty_dict[base_name], 'MaxSoftmax'])
         if 'MCDropout' in methods:
             data.append([base_name, dice, iou, mcdo_uncertainty_dict[base_name], 'MCDropout'])
+        if 'TTA' in methods:
+            data.append([base_name, dice, iou, tta_uncertainty_dict[base_name], 'TTA'])
         if 'TempScaling' in methods:
             for temp in temperatures:
                 data.append([base_name, dice, iou, temp_scaled_uncertainty_dict[temp][base_name], 'TempScaling_{}'.format(temp)])
@@ -153,6 +159,24 @@ def per_subject_dropout_uncertainty(eval_path, base_names, MC_outputs_path, labe
         for base_name in tqdm(base_names):
             #try:
             uncertainty = dropout_uncertainty(MC_outputs_path, base_name, label=label, norm=norm)
+            uncertainty = average_uncertainty(uncertainty)
+            uncertainties_dict[base_name] = float(uncertainty)
+            #except:
+            #    uncertainties_dict[base_name] = 'Error'
+        with open(full_path, 'w') as json_file:
+            json.dump(uncertainties_dict, json_file)
+        return uncertainties_dict
+
+def per_subject_tta_uncertainty(eval_path, base_names, TTA_outputs_path, label=1, norm=False):
+    full_path = os.path.join(eval_path, 'tta_uncertainties.json')
+    try:
+        with open(full_path, 'r') as json_file:
+            return json.load(json_file)
+    except:
+        uncertainties_dict = dict()
+        for base_name in tqdm(base_names):
+            #try:
+            uncertainty = tta_uncertainty(TTA_outputs_path, base_name, label=label, norm=norm)
             uncertainty = average_uncertainty(uncertainty)
             uncertainties_dict[base_name] = float(uncertainty)
             #except:
