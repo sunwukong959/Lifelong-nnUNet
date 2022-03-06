@@ -187,15 +187,15 @@ def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
         feature_names=feature_paths, files_name=files_name)
 
 def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix, 
-    feature_paths, targets_path=None, label=1, nr_labels=2, temperatures=[10], 
+    mahal_features, targets_path=None, label=1, nr_labels=2, temperatures=[10], 
     methods=None, dist_files_name=''):
     r"""Extract uncertainty values with several methods.
     :param pred_dataset_name: name of the dataset for which outputs are to be
         extracted (name of images stored in inputs_path)
     :param task_id: Task (dataset name) of the pre-trained model that is loaded
     :param fold_ix: Fold of the model instance that is restored, often 0
-    :param feature_paths: paths to the feature names, e.g.
-        ['conv_blocks_context.6.blocks.1.conv']
+    :param mahal_features: paths to the feature names, e.g.
+        {'CB6': ['conv_blocks_context.6.blocks.1.conv']}
     :param targets_path: The directory where targets are stored for 
         'pred_dataset_name', until 'labelsTr'  
     :param label: label for the class of interest
@@ -222,7 +222,7 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     df = per_subject_eval_with_uncertainties(eval_path, base_names, 
         predictions_path=predictions_path, targets_path=targets_path, outputs_path=outputs_path, 
         non_softmaxed_outputs_path=non_softmaxed_outputs_path, MC_outputs_path=MC_outputs_path, TTA_outputs_path=TTA_outputs_path,
-        features_path=output_features_path, feature_key=feature_paths[0],
+        features_path=output_features_path, mahal_features=mahal_features,
         label=label, nr_labels=nr_labels, part=fold_ix, temperatures=temperatures, 
         methods=methods, dist_files_name=dist_files_name)
     df.to_csv(os.path.join(eval_path, 'df.csv'), sep='\t')

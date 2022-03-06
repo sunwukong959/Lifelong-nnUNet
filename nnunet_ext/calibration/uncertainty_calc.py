@@ -165,7 +165,7 @@ def _get_gaussian(patch_size, sigma_scale=1. / 8) -> np.ndarray:
 
     return gaussian_importance_map
 
-def mahalanobis_uncertainty(features_path, base_name, feature_key, 
+def mahalanobis_uncertainty(features_path, base_name, feature_name, 
     patch_size=[28, 256, 256], use_gaussian=False, norm=False, dist_files_name=''):
     distances_full_path = os.path.join(features_path, base_name + dist_files_name + '_distances.pkl')
     feature_distances = pickle.load(open(distances_full_path, 'rb'))
@@ -179,7 +179,7 @@ def mahalanobis_uncertainty(features_path, base_name, feature_key,
     for patch_key, patch_key_str in patch_keys:
         ub_x, ub_y, ub_z = patch_key
         lb_x, lb_y, lb_z = ub_x-patch_size[0], ub_y-patch_size[1], ub_z-patch_size[2]
-        distance = feature_distances[patch_key_str][feature_key]
+        distance = feature_distances[patch_key_str][feature_name]
         distance_patch = np.full(patch_size, float(distance))
         if use_gaussian:
             distance_patch *= gaussian_importance_map

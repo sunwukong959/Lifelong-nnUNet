@@ -135,7 +135,7 @@ def avg_score_below_boundary(items, boundary, score='Dice'):
     if len(scores) > 0:
         return np.mean(scores), np.std(scores), len(test_items_certain)/len(test_items)
     else:
-        return 0
+        return np.nan, np.nan, 0
 
 def uncertainty_boundaries(items, mult=2):
     val_items = [item for item in items if item['Split'] == 'Val']
@@ -163,10 +163,6 @@ def _get_calibration_bins(items, metric='Dice', nr_bins=10, start=0, end=1):
     bin_boundaries = [start+((end-start)/(nr_bins))*(1+bin_ix) for bin_ix in range(nr_bins)]
     bin_confidences = [[] for ix in range(nr_bins)]
     bin_scores = [[] for ix in range(nr_bins)]
-
-    #print('LEN ITEMS 167: {}'.format(len(items)))
-
-
 
     # Normalize uncertainties
     if 'NormedUncertainty' not in items[0]:
@@ -216,8 +212,6 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
         #print('Method: {}'.format(method))
         items = load_results(eval_storage_path=eval_storage_path, method=method, 
             id_val=id_val, id_test=id_test, ood=ood)
-
-        #print('LEN ITEMS 220: {}'.format(len(items)))
 
         # Calibration error
         ece = calibration_error(items, metric='Dice')
