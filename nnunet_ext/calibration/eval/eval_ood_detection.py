@@ -59,6 +59,7 @@ def load_results(eval_storage_path, method='MaxSoftmax', id_val=[], id_test=[], 
             else:
                 df_items[ix]['Split'] = 'Test'
         all_dfs_items += df_items
+    val_items = [item for item in all_dfs_items if item['Split']=='Val']
     return all_dfs_items
 
 def get_tp_tn_fn_fp(items, boundary):
@@ -162,6 +163,11 @@ def _get_calibration_bins(items, metric='Dice', nr_bins=10, start=0, end=1):
     bin_boundaries = [start+((end-start)/(nr_bins))*(1+bin_ix) for bin_ix in range(nr_bins)]
     bin_confidences = [[] for ix in range(nr_bins)]
     bin_scores = [[] for ix in range(nr_bins)]
+
+    #print('LEN ITEMS 167: {}'.format(len(items)))
+
+
+
     # Normalize uncertainties
     if 'NormedUncertainty' not in items[0]:
         set_normed_uncertainties(items)
@@ -207,8 +213,11 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
         methods=['MaxSoftmax', 'MCDropout', 'KL', 'Mahalanobis', 'TTA'] + ['TempScaling_{}'.format(t) for t in [1, 10, 100, 1000]] + ['EnergyScoring_{}'.format(t) for t in [10, 100, 1000]]
     df_data = []
     for method in methods:
+        #print('Method: {}'.format(method))
         items = load_results(eval_storage_path=eval_storage_path, method=method, 
             id_val=id_val, id_test=id_test, ood=ood)
+
+        #print('LEN ITEMS 220: {}'.format(len(items)))
 
         # Calibration error
         ece = calibration_error(items, metric='Dice')

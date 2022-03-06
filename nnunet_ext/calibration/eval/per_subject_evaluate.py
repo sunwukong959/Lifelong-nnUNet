@@ -13,7 +13,7 @@ from nnunet_ext.calibration.eval.per_voxel_evaluate import comp_metrices_new, av
 
 def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path, 
     targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, TTA_outputs_path,
-    features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[1, 10, 100, 1000], 
+    features_path, feature_key, label=1, nr_labels=2, part=0, temperatures=[1, 10, 100], 
     methods=None, dist_files_name=''):
     
     print('\nGetting segmentation results')
