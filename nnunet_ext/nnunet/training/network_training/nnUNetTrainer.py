@@ -32,6 +32,7 @@ from nnunet.configuration import default_num_threads
 from nnunet.evaluation.evaluator import aggregate_scores
 from nnunet_ext.nnunet.inference.segmentation_export import save_segmentation_nifti_from_softmax
 from nnunet_ext.nnunet.network_architecture.generic_UNet import Generic_UNet
+from nnunet_ext.nnunet.network_architecture.generic_UNet import AltNetwork
 from nnunet.network_architecture.initialization import InitWeights_He
 from nnunet_ext.nnunet.network_architecture.neural_network import SegmentationNetwork
 from nnunet.postprocessing.connected_components import determine_postprocessing
@@ -188,7 +189,7 @@ class nnUNetTrainer(NetworkTrainer):
         self.data_aug_params['selected_seg_channels'] = [0]
         self.data_aug_params['patch_size_for_spatialtransform'] = self.patch_size
 
-    def initialize(self, training=True, force_load_plans=False, mcdo=-1):
+    def initialize(self, training=True, force_load_plans=False, mcdo=-1, gen_unet=True):
         """
         For prediction of test cases just set training=False, this will prevent loading of training data and
         training batchgenerator initialization
@@ -228,12 +229,12 @@ class nnUNetTrainer(NetworkTrainer):
                                    also_print_to_console=False)
         else:
             pass
-        self.initialize_network(mcdo)
+        self.initialize_network(mcdo, gen_unet=gen_unet)
         self.initialize_optimizer_and_scheduler()
         # assert isinstance(self.network, (SegmentationNetwork, nn.DataParallel))
         self.was_initialized = True
 
-    def initialize_network(self, mcdo=-1):
+    def initialize_network(self, mcdo=-1, gen_unet=True):
         """
         This is specific to the U-Net and must be adapted for other network architectures
         :return:
@@ -262,11 +263,18 @@ class nnUNetTrainer(NetworkTrainer):
         dropout_op_kwargs = {'p': dropout_p, 'inplace': True}
         net_nonlin = nn.LeakyReLU
         net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
-        self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes, net_numpool,
-                                    self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
-                                    dropout_op_kwargs,
-                                    net_nonlin, net_nonlin_kwargs, False, False, lambda x: x, InitWeights_He(1e-2),
-                                    self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
+        if gen_unet:
+            self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes, net_numpool,
+                                        self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
+                                        dropout_op_kwargs,
+                                        net_nonlin, net_nonlin_kwargs, False, False, lambda x: x, InitWeights_He(1e-2),
+                                        self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
+        else:
+            self.network = AltNetwork(self.num_input_channels, self.base_num_features, self.num_classes, net_numpool,
+                                        self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
+                                        dropout_op_kwargs,
+                                        net_nonlin, net_nonlin_kwargs, False, False, lambda x: x, InitWeights_He(1e-2),
+                                        self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
         self.network.inference_apply_nonlin = softmax_helper
 
         if torch.cuda.is_available():

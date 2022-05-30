@@ -26,6 +26,7 @@ from nnunet.training.data_augmentation.data_augmentation_moreDA import get_moreD
 from nnunet.training.loss_functions.deep_supervision import MultipleOutputLoss2
 from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
 from nnunet_ext.nnunet.network_architecture.generic_UNet import Generic_UNet
+from nnunet_ext.nnunet.network_architecture.generic_UNet import AltNetwork
 from nnunet.network_architecture.initialization import InitWeights_He
 from nnunet_ext.nnunet.network_architecture.neural_network import SegmentationNetwork
 from nnunet.training.data_augmentation.default_data_augmentation import default_2D_augmentation_params, \
@@ -56,7 +57,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
         self.pin_memory = True
 
-    def initialize(self, training=True, force_load_plans=False, mcdo=-1):
+    def initialize(self, training=True, force_load_plans=False, mcdo=-1, gen_unet=True):
         """
         - replaced get_default_augmentation with get_moreDA_augmentation
         - enforce to only run this code once
@@ -122,7 +123,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
             else:
                 pass
 
-            self.initialize_network(mcdo)
+            self.initialize_network(mcdo, gen_unet=gen_unet)
             self.initialize_optimizer_and_scheduler()
 
             assert isinstance(self.network, (SegmentationNetwork, nn.DataParallel))
@@ -130,7 +131,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
             self.print_to_log_file('self.was_initialized is True, not running self.initialize again')
         self.was_initialized = True
 
-    def initialize_network(self, mcdo=-1):
+    def initialize_network(self, mcdo=-1, gen_unet=True):
         """
         - momentum 0.99
         - SGD instead of Adam
@@ -161,12 +162,20 @@ class nnUNetTrainerV2(nnUNetTrainer):
         dropout_op_kwargs = {'p': dropout_p, 'inplace': True}
         net_nonlin = nn.LeakyReLU
         net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
-        self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes,
-                                    len(self.net_num_pool_op_kernel_sizes),
-                                    self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
-                                    dropout_op_kwargs,
-                                    net_nonlin, net_nonlin_kwargs, True, False, lambda x: x, InitWeights_He(1e-2),
-                                    self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
+        if gen_unet:
+            self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes,
+                                        len(self.net_num_pool_op_kernel_sizes),
+                                        self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
+                                        dropout_op_kwargs,
+                                        net_nonlin, net_nonlin_kwargs, True, False, lambda x: x, InitWeights_He(1e-2),
+                                        self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
+        else:
+            self.network = AltNetwork(self.num_input_channels, self.base_num_features, self.num_classes,
+                                        len(self.net_num_pool_op_kernel_sizes),
+                                        self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
+                                        dropout_op_kwargs,
+                                        net_nonlin, net_nonlin_kwargs, True, False, lambda x: x, InitWeights_He(1e-2),
+                                        self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
         if torch.cuda.is_available():
             self.network.cuda()
         self.network.inference_apply_nonlin = softmax_helper
