@@ -90,7 +90,7 @@ def restore_model(pkl_file, checkpoint=None, train=False, fp16=True, use_extensi
         trainer = tr(*init)
     # Some trainers do not yet support mcdo
     try:
-        trainer.initialize(train, mcdo=mcdo)
+        trainer.initialize(train, mcdo=mcdo, gen_unet=True)
     except:
         trainer.initialize(train)
 
