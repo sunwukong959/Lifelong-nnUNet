@@ -15,11 +15,11 @@
 
 import argparse
 from batchgenerators.utilities.file_and_folder_operations import *
-from nnunet.run.default_configuration import get_default_configuration
+from nnunet_ext.run.default_configuration_closer import get_default_configuration
 from nnunet.paths import default_plans_identifier
 from nnunet.run.load_pretrained_weights import load_pretrained_weights
 from nnunet.training.cascade_stuff.predict_next_stage import predict_next_stage
-from nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
+from nnunet_ext.nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
 from nnunet.training.network_training.nnUNetTrainerCascadeFullRes import nnUNetTrainerCascadeFullRes
 from nnunet.training.network_training.nnUNetTrainerV2_CascadeFullRes import nnUNetTrainerV2CascadeFullRes
 from nnunet.utilities.task_name_id_conversion import convert_id_to_task_name
@@ -160,7 +160,10 @@ def main():
         # the training chashes
         trainer.save_latest_only = True  # if false it will not store/overwrite _latest but separate files each
 
-    trainer.initialize(not validation_only)
+    if network in ['2d', '3d_lowres', '3d_fullres', '3d_cascade_fullres']:
+        trainer.initialize(not validation_only, network_arch='generic')
+    else:
+        trainer.initialize(not validation_only, network_arch=network)
 
     if find_lr:
         trainer.find_lr()

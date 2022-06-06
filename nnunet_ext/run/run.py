@@ -8,7 +8,7 @@ import sys
 import os
 import nnunet.experiment_planning.nnUNet_plan_and_preprocess as plan_and_preprocess
 import nnunet_ext.nnunet.inference.predict_simple as predict_simple
-import nnunet.run.run_training as run_training
+import nnunet_ext.run.run_training as run_training
 from nnunet_ext.utilities.helpful_functions import join_texts_with_char
 from nnunet_ext.calibration.uncertainty_calc import estimate_multivariate_gaussian_save_distances
 from nnunet_ext.calibration.eval.per_subject_evaluate import per_subject_eval_with_uncertainties

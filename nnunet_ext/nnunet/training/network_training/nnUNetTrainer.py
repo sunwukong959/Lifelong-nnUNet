@@ -189,7 +189,7 @@ class nnUNetTrainer(NetworkTrainer):
         self.data_aug_params['selected_seg_channels'] = [0]
         self.data_aug_params['patch_size_for_spatialtransform'] = self.patch_size
 
-    def initialize(self, training=True, force_load_plans=False, mcdo=-1, gen_unet=True):
+    def initialize(self, training=True, force_load_plans=False, mcdo=-1, network_arch='generic'):
         """
         For prediction of test cases just set training=False, this will prevent loading of training data and
         training batchgenerator initialization
@@ -229,12 +229,12 @@ class nnUNetTrainer(NetworkTrainer):
                                    also_print_to_console=False)
         else:
             pass
-        self.initialize_network(mcdo, gen_unet=gen_unet)
+        self.initialize_network(mcdo, network_arch=network_arch)
         self.initialize_optimizer_and_scheduler()
         # assert isinstance(self.network, (SegmentationNetwork, nn.DataParallel))
         self.was_initialized = True
 
-    def initialize_network(self, mcdo=-1, gen_unet=True):
+    def initialize_network(self, mcdo=-1, network_arch='generic'):
         """
         This is specific to the U-Net and must be adapted for other network architectures
         :return:
@@ -263,7 +263,7 @@ class nnUNetTrainer(NetworkTrainer):
         dropout_op_kwargs = {'p': dropout_p, 'inplace': True}
         net_nonlin = nn.LeakyReLU
         net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
-        if gen_unet:
+        if network_arch == 'generic':
             self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes, net_numpool,
                                         self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
                                         dropout_op_kwargs,

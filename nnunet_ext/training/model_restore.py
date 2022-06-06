@@ -90,7 +90,10 @@ def restore_model(pkl_file, checkpoint=None, train=False, fp16=True, use_extensi
         trainer = tr(*init)
     # Some trainers do not yet support mcdo
     try:
-        trainer.initialize(train, mcdo=mcdo, gen_unet=True)
+        if network in ['2d', '3d_lowres', '3d_fullres', '3d_cascade_fullres']:
+            trainer.initialize(train, mcdo=mcdo, network_arch='generic')
+        else:
+            trainer.initialize(train, mcdo=mcdo, network_arch=network)
     except:
         trainer.initialize(train)
 

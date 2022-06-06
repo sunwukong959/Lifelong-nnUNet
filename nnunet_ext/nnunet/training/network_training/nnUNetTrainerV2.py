@@ -57,7 +57,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
         self.pin_memory = True
 
-    def initialize(self, training=True, force_load_plans=False, mcdo=-1, gen_unet=True):
+    def initialize(self, training=True, force_load_plans=False, mcdo=-1, network_arch='generic'):
         """
         - replaced get_default_augmentation with get_moreDA_augmentation
         - enforce to only run this code once
@@ -123,7 +123,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
             else:
                 pass
 
-            self.initialize_network(mcdo, gen_unet=gen_unet)
+            self.initialize_network(mcdo, network_arch=network_arch)
             self.initialize_optimizer_and_scheduler()
 
             assert isinstance(self.network, (SegmentationNetwork, nn.DataParallel))
@@ -131,7 +131,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
             self.print_to_log_file('self.was_initialized is True, not running self.initialize again')
         self.was_initialized = True
 
-    def initialize_network(self, mcdo=-1, gen_unet=True):
+    def initialize_network(self, mcdo=-1, network_arch='generic'):
         """
         - momentum 0.99
         - SGD instead of Adam
@@ -162,7 +162,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
         dropout_op_kwargs = {'p': dropout_p, 'inplace': True}
         net_nonlin = nn.LeakyReLU
         net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
-        if gen_unet:
+        if network_arch == 'generic':
             self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes,
                                         len(self.net_num_pool_op_kernel_sizes),
                                         self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
