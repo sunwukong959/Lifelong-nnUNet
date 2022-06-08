@@ -84,7 +84,7 @@ def nnUNet_extract_outputs(inputs_path, pred_dataset_name, task_id,
     :param checkpoint: Checkpoint from which to restore the model state
     :param fold_ix: Fold of the model instance that is restored, often 0
     """
-    extract_path = os.path.join(results_path, 'outputs', task_id, str(fold_ix), pred_dataset_name)
+    extract_path = os.path.join(results_path, model_type, 'outputs', task_id, str(fold_ix), pred_dataset_name)
     nnUNet_predict(input_path=inputs_path, output_path=extract_path, task_id=task_id,
         model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
         extract_outputs=True, mcdo=-1, softmaxed=True)
@@ -100,7 +100,7 @@ def nnUNet_extract_non_softmaxed_outputs(inputs_path, pred_dataset_name, task_id
     :param checkpoint: Checkpoint from which to restore the model state
     :param fold_ix: Fold of the model instance that is restored, often 0
     """
-    extract_path = os.path.join(results_path, 'non_softmaxed_outputs', task_id, str(fold_ix), pred_dataset_name)
+    extract_path = os.path.join(results_path, model_type, 'non_softmaxed_outputs', task_id, str(fold_ix), pred_dataset_name)
     nnUNet_predict(input_path=inputs_path, output_path=extract_path, task_id=task_id,
         model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
         extract_outputs=True, mcdo=-1, softmaxed=False)
@@ -118,7 +118,7 @@ def nnUNet_extract_MCDO_outputs(inputs_path, pred_dataset_name, mcdo_ix, task_id
     :param checkpoint: Checkpoint from which to restore the model state
     :param fold_ix: Fold of the model instance that is restored, often 0
     """
-    extract_path = os.path.join(results_path, 'MC_outputs', task_id, str(fold_ix), pred_dataset_name)
+    extract_path = os.path.join(results_path, model_type, 'MC_outputs', task_id, str(fold_ix), pred_dataset_name)
     assert mcdo_ix > -1
     nnUNet_predict(input_path=inputs_path, output_path=extract_path, task_id=task_id,
         model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
@@ -137,7 +137,7 @@ def nnUNet_extract_TTA_outputs(inputs_path, pred_dataset_name, tta_ix, task_id,
     :param checkpoint: Checkpoint from which to restore the model state
     :param fold_ix: Fold of the model instance that is restored, often 0
     """
-    extract_path = os.path.join(results_path, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
+    extract_path = os.path.join(results_path, model_type, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
     assert tta_ix > -1
     nnUNet_predict(input_path=inputs_path, output_path=extract_path, task_id=task_id,
         model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
@@ -160,7 +160,7 @@ def nnUNet_extract_features(inputs_path, pred_dataset_name, feature_paths, task_
     :param checkpoint: Checkpoint from which to restore the model state
     :param fold_ix: Fold of the model instance that is restored, often 0
     """
-    features_root_path = os.path.join(results_path, 'features', task_id, str(fold_ix))
+    features_root_path = os.path.join(results_path, model_type, 'features', task_id, str(fold_ix))
     output_features_path = os.path.join(features_root_path, pred_dataset_name)
     nnUNet_predict(input_path=inputs_path, output_path=output_features_path, task_id=task_id,
                     model_type=model_type, checkpoint=checkpoint, fold_ix=fold_ix, disable_tta=True,
@@ -168,7 +168,7 @@ def nnUNet_extract_features(inputs_path, pred_dataset_name, feature_paths, task_
                     output_features_path=output_features_path, feature_paths=feature_paths)
 
 def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
-    feature_paths=None, files_name=''):
+    feature_paths=None, files_name='', model_type='3d_fullres'):
     r"""Estimate a multivariate Gaussian distribution and save distances to that
     distribution.
     :param task_id: Task (dataset name) of the pre-trained model that is loaded
@@ -181,14 +181,14 @@ def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
         to 'train_ds_names' in the feature space will be stored.
     :param feature_paths: Features that are considered for the distance.
     """
-    features_root_path = os.path.join(results_path, 'features', task_id, str(fold_ix))
+    features_root_path = os.path.join(results_path, model_type, 'features', task_id, str(fold_ix))
     estimate_multivariate_gaussian_save_distances(features_root_path, 
         train_ds_names=train_ds_names, store_ds_names=store_ds_names, 
         feature_names=feature_paths, files_name=files_name)
 
 def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix, 
     mahal_features, targets_path=None, label=1, nr_labels=2, temperatures=[10], 
-    methods=None, dist_files_name=''):
+    methods=None, dist_files_name='', model_type='3d_fullres'):
     r"""Extract uncertainty values with several methods.
     :param pred_dataset_name: name of the dataset for which outputs are to be
         extracted (name of images stored in inputs_path)
@@ -205,12 +205,12 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     """
     if targets_path is None:
         targets_path = os.path.join(os.environ.get('nnUNet_raw_data_base'), 'nnUNet_raw_data', pred_dataset_name, 'labelsTr')
-    predictions_path = os.path.join(results_path, 'predictions', task_id, str(fold_ix), pred_dataset_name)
-    outputs_path = os.path.join(results_path, 'outputs', task_id, str(fold_ix), pred_dataset_name)
-    non_softmaxed_outputs_path = os.path.join(results_path, 'non_softmaxed_outputs', task_id, str(fold_ix), pred_dataset_name)
-    MC_outputs_path = os.path.join(results_path, 'MC_outputs', task_id, str(fold_ix), pred_dataset_name)
-    TTA_outputs_path = os.path.join(results_path, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
-    features_root_path = os.path.join(results_path, 'features', task_id, str(fold_ix))
+    predictions_path = os.path.join(results_path, model_type, 'predictions', task_id, str(fold_ix), pred_dataset_name)
+    outputs_path = os.path.join(results_path, model_type, 'outputs', task_id, str(fold_ix), pred_dataset_name)
+    non_softmaxed_outputs_path = os.path.join(results_path, model_type, 'non_softmaxed_outputs', task_id, str(fold_ix), pred_dataset_name)
+    MC_outputs_path = os.path.join(results_path, model_type, 'MC_outputs', task_id, str(fold_ix), pred_dataset_name)
+    TTA_outputs_path = os.path.join(results_path, model_type, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
+    features_root_path = os.path.join(results_path, model_type, 'features', task_id, str(fold_ix))
     output_features_path = os.path.join(features_root_path, pred_dataset_name)
     eval_storage_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), task_id, str(fold_ix))
     eval_path = os.path.join(eval_storage_path, pred_dataset_name)

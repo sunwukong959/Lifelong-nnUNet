@@ -138,7 +138,7 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
                   all_in_gpu=False, step_size=0.5, checkpoint_name="model_final_checkpoint",
                   segmentation_export_kwargs: dict = None, disable_postprocessing: bool = False,
                   output_probabilities: bool = False, tta: int = -1, mcdo: int = -1, no_softmax=False,
-                  features_dirs=None, feature_paths=None):
+                  features_dirs=None, feature_paths=None, model_type="3d_fullres"):
     """
     :param segmentation_export_kwargs:
     :param model: folder where the model is saved, must contain fold_x subfolders
@@ -188,7 +188,7 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
 
     print("loading parameters for folds,", folds)
     trainer, params = load_model_and_checkpoint_files(model, folds, mixed_precision=mixed_precision,
-                                                      checkpoint_name=checkpoint_name, mcdo=mcdo)
+                                                      checkpoint_name=checkpoint_name, mcdo=mcdo, model_type=model_type)
     # If required, disable 'self.network.inference_apply_nonlin = softmax_helper',
     # set during the trainer initialization
     if no_softmax:
@@ -389,7 +389,7 @@ def predict_from_folder(model: str, input_folder: str, output_folder: str, folds
                         step_size: float = 0.5, checkpoint_name: str = "model_final_checkpoint",
                         segmentation_export_kwargs: dict = None, disable_postprocessing: bool = False,
                         output_probabilities: bool = False, uncertainty_tta: int = -1, mcdo: int = -1, no_softmax = False,
-                        features_folder=None, feature_paths=None):
+                        features_folder=None, feature_paths=None, model_type="3d_fullres"):
     """
         here we use the standard naming scheme to generate list_of_lists and output_files needed by predict_cases
 
@@ -454,6 +454,6 @@ def predict_from_folder(model: str, input_folder: str, output_folder: str, folds
                              segmentation_export_kwargs=segmentation_export_kwargs,
                              disable_postprocessing=disable_postprocessing,
                              output_probabilities=output_probabilities, tta=uncertainty_tta, mcdo=mcdo, no_softmax=no_softmax,
-                             features_dirs=features_dirs, feature_paths=feature_paths)
+                             features_dirs=features_dirs, feature_paths=feature_paths, model_type=model_type)
     else:
         raise ValueError("unrecognized mode. Must be normal.")

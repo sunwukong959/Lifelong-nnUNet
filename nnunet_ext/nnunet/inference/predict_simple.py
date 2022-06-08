@@ -167,7 +167,7 @@ def main():
         task_id = int(task_name)
         task_name = convert_id_to_task_name(task_id)
 
-    assert model in ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres"], "-m must be 2d, 3d_lowres, 3d_fullres or " \
+    assert model in ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres", "alt_network"], "-m must be 2d, 3d_lowres, 3d_fullres or " \
                                                                              "3d_cascade_fullres"
 
     # if force_separate_z == "None":
@@ -218,7 +218,7 @@ def main():
                             mixed_precision=not args.disable_mixed_precision,
                             step_size=step_size, output_probabilities=output_probabilities, 
                         uncertainty_tta=uncertainty_tta, mcdo=mcdo, no_softmax=no_softmax,
-                        features_folder=features_folder, feature_paths=feature_paths)
+                        features_folder=features_folder, feature_paths=feature_paths, model_type=model)
         lowres_segmentations = lowres_output_folder
         torch.cuda.empty_cache()
         print("3d_lowres done")
@@ -240,7 +240,7 @@ def main():
                         step_size=step_size, checkpoint_name=args.chk,
                         output_probabilities=output_probabilities, 
                         uncertainty_tta=uncertainty_tta, mcdo=mcdo, no_softmax=no_softmax,
-                        features_folder=features_folder, feature_paths=feature_paths)
+                        features_folder=features_folder, feature_paths=feature_paths, model_type=model)
 
 if __name__ == "__main__":
     main()

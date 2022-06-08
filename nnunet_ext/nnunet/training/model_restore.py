@@ -110,7 +110,7 @@ def load_best_model_for_inference(folder):
     return restore_model(pkl_file, checkpoint, False)
 
 
-def load_model_and_checkpoint_files(folder, folds=None, mixed_precision=None, checkpoint_name="model_best", mcdo=-1):
+def load_model_and_checkpoint_files(folder, folds=None, mixed_precision=None, checkpoint_name="model_best", mcdo=-1, model_type='3d_fullres'):
     """
     used for if you need to ensemble the five models of a cross-validation. This will restore the model from the
     checkpoint in fold 0, load all parameters of the five folds in ram and return both. This will allow for fast
@@ -145,7 +145,12 @@ def load_model_and_checkpoint_files(folder, folds=None, mixed_precision=None, ch
     trainer.output_folder = folder
     trainer.output_folder_base = folder
     trainer.update_fold(0)
-    trainer.initialize(False, mcdo=mcdo)
+
+    if model_type in ['2d', '3d_lowres', '3d_fullres', '3d_cascade_fullres']:
+        trainer.initialize(False, mcdo=mcdo, network_arch='generic')
+    else:
+        trainer.initialize(False, mcdo=mcdo, network_arch=model_type)
+        
     all_best_model_files = [join(i, "%s.model" % checkpoint_name) for i in folds]
     print("using the following model files: ", all_best_model_files)
     all_params = [torch.load(i, map_location=torch.device('cpu')) for i in all_best_model_files]
