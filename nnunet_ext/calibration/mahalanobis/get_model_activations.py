@@ -2,17 +2,23 @@
 # Estimate the multinormal density for a space of intermediate features.
 # ------------------------------------------------------------------------------
 
+from numpy import average
 import torch
 import pickle
 from nnunet_ext.calibration.mahalanobis.ActivationSeeker import ActivationSeeker
 
 pooling_mod_2d = torch.nn.AvgPool2d((5, 5), stride=(3, 3))
 pooling_mod_3d = torch.nn.AvgPool3d((2, 2, 2), stride=(2, 2, 2))
+pooling_mod_3d_from_second = torch.nn.AvgPool3d((1, 2, 2), stride=(1, 2, 2))
 def apply_pooling(act):
     if len(act.shape) == 4:
         return pooling_mod_2d(act)
     elif len(act.shape) == 5:
-        return pooling_mod_3d(act)
+        try:
+            act = pooling_mod_3d(act)
+        except:
+            act = pooling_mod_3d_from_second(act)
+        return act
     else:
         raise Exception
 
@@ -29,6 +35,7 @@ def extract_small_np_features(act_seeker, x=None, model=None, max_elems=10000):
     act_dict = act_seeker.get_data_activations(model, x)
     act_dict_after_pool = dict()
     for key, item in act_dict.items():
+        print('key: {}'.format)
         val = item
         nr_elements = torch.numel(val)
         # Apply average pooling to reduce dimensionality
