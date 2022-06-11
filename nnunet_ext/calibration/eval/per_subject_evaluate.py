@@ -15,6 +15,9 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
     targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, TTA_outputs_path,
     features_path, mahal_features, label=1, nr_labels=2, part=0, temperatures=[1, 10, 100], 
     methods=None, dist_files_name=''):
+
+    if methods is None:
+        methods = ['MaxSoftmax', 'MCDropout', 'TTA', 'Mahalanobis', 'TempScaling', 'KL', 'EnergyScoring']
     
     print('\nGetting segmentation results')
     eval_dict = per_subject_evaluation(eval_path, base_names, predictions_path, targets_path, label=label, avg=True)

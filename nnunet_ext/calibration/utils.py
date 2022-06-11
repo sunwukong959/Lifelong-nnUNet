@@ -1,4 +1,5 @@
 import numpy as np
+import SimpleITK as sitk
 import os
 from natsort import natsorted
 import nibabel as nib
@@ -29,6 +30,11 @@ def load_nifty(filepath):
     spacing = img.header["pixdim"][1:4]
     header = img.header
     return img_np, affine, spacing, header
+
+def load_nifty_no_metadata(filepath):
+    image = sitk.ReadImage(filepath)
+    image_np = sitk.GetArrayFromImage(image)
+    return image_np
 
 def save_nifty(filepath, img, affine=None, spacing=None, header=None, is_mask=False):
     if is_mask:

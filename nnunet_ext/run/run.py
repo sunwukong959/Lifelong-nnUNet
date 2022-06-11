@@ -12,6 +12,7 @@ import nnunet_ext.run.run_training as run_training
 from nnunet_ext.utilities.helpful_functions import join_texts_with_char
 from nnunet_ext.calibration.uncertainty_calc import estimate_multivariate_gaussian_save_distances
 from nnunet_ext.calibration.eval.per_subject_evaluate import per_subject_eval_with_uncertainties
+from pers.utils.load_restore import pkl_load
 
 results_path = os.environ.get('RESULTS_FOLDER')
 
@@ -168,7 +169,7 @@ def nnUNet_extract_features(inputs_path, pred_dataset_name, feature_paths, task_
                     output_features_path=output_features_path, feature_paths=feature_paths)
 
 def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
-    feature_paths=None, files_name='', model_type='3d_fullres'):
+    feature_paths=None, files_name='', model_type='3d_fullres', exclude_fold_val_cases=False):
     r"""Estimate a multivariate Gaussian distribution and save distances to that
     distribution.
     :param task_id: Task (dataset name) of the pre-trained model that is loaded
@@ -182,13 +183,22 @@ def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
     :param feature_paths: Features that are considered for the distance.
     """
     features_root_path = os.path.join(results_path, model_type, 'features', task_id, str(fold_ix))
+
+    # Place only train cases of the split
+    train_ds_cases = None
+    if exclude_fold_val_cases:
+        train_ds_cases = dict()
+        for train_ds_name in train_ds_names:
+            splits = pkl_load('splits_final.pkl', path=os.path.join(os.environ['nnUNet_preprocessed'], train_ds_name))
+            train_ds_cases[train_ds_name] = splits[fold_ix]['train']
+
     estimate_multivariate_gaussian_save_distances(features_root_path, 
         train_ds_names=train_ds_names, store_ds_names=store_ds_names, 
-        feature_names=feature_paths, files_name=files_name)
+        feature_names=feature_paths, files_name=files_name, train_ds_cases=train_ds_cases)
 
 def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix, 
     mahal_features, targets_path=None, label=1, nr_labels=2, temperatures=[10], 
-    methods=None, dist_files_name='', model_type='3d_fullres'):
+    methods=None, dist_files_name='', model_type='3d_fullres', df_subdir=None):
     r"""Extract uncertainty values with several methods.
     :param pred_dataset_name: name of the dataset for which outputs are to be
         extracted (name of images stored in inputs_path)
@@ -212,9 +222,8 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
     TTA_outputs_path = os.path.join(results_path, model_type, 'TTA_outputs', task_id, str(fold_ix), pred_dataset_name)
     features_root_path = os.path.join(results_path, model_type, 'features', task_id, str(fold_ix))
     output_features_path = os.path.join(features_root_path, pred_dataset_name)
-    eval_storage_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), task_id, str(fold_ix))
+    eval_storage_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), model_type, task_id, str(fold_ix))
     eval_path = os.path.join(eval_storage_path, pred_dataset_name)
-    eval_path = os.path.join(os.environ.get('EVALUATION_FOLDER'), task_id, str(fold_ix), pred_dataset_name)
     try:
         base_names = [f[:-7] for f in os.listdir(targets_path) if '.nii.gz' in f]
     except: # Raw data not in current PC
@@ -225,7 +234,13 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
         features_path=output_features_path, mahal_features=mahal_features,
         label=label, nr_labels=nr_labels, part=fold_ix, temperatures=temperatures, 
         methods=methods, dist_files_name=dist_files_name)
-    df.to_csv(os.path.join(eval_path, 'df.csv'), sep='\t')
+    if df_subdir is None:
+        df.to_csv(os.path.join(eval_path, 'df.csv'), sep='\t')
+    else:
+        df_final_dir = os.path.join(eval_path, df_subdir)
+        if not os.path.exists(df_final_dir):
+            os.makedirs(df_final_dir)
+        df.to_csv(os.path.join(df_final_dir, 'df.csv'), sep='\t')
 
 
 
