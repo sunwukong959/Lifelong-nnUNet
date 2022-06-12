@@ -21,7 +21,7 @@ def softmax_uncertainty(outputs_path, base_name, nr_labels=2, part=0,
     uncertainty = []
     for label in range(nr_labels):
         uncertainty_path = os.path.join(outputs_path, '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-        label_uncertainty = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+        label_uncertainty = utils.load_nifty_no_metadata(uncertainty_path).astype(np.float16)
         uncertainty.append(label_uncertainty)
     uncertainty = np.stack(uncertainty, axis=0)
     uncertainty = np.max(uncertainty, axis=0)
@@ -45,7 +45,7 @@ def dropout_uncertainty(MC_outputs_path, base_name, label=1, norm=False,
             for f in uncertainty_file_paths]
         predictions = []
         for output in uncertainty_file_paths:
-            prediction = utils.load_nifty(output)[0].astype(np.float16)
+            prediction = utils.load_nifty_no_metadata(output).astype(np.float16)
             predictions.append(prediction)
         predictions = np.stack(predictions)
         uncertainty = np.std(predictions, axis=0)
@@ -71,7 +71,7 @@ def tta_uncertainty(TTA_outputs_path, base_name, label=1, norm=False,
             for f in uncertainty_file_paths]
         predictions = []
         for output in uncertainty_file_paths:
-            prediction = utils.load_nifty(output)[0].astype(np.float16)
+            prediction = utils.load_nifty_no_metadata(output).astype(np.float16)
             predictions.append(prediction)
         predictions = np.stack(predictions)
         uncertainty = np.std(predictions, axis=0)
@@ -100,7 +100,7 @@ def kl_uncertainty(outputs_path, base_name, nr_labels=2, part=0, norm=False,
     for label in range(nr_labels):
         uncertainty_path = os.path.join(outputs_path, 
             '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-        label_output = utils.load_nifty(uncertainty_path)[0].astype(np.float16)
+        label_output = utils.load_nifty_no_metadata(uncertainty_path).astype(np.float16)
         label_outputs.append(label_output)
     kl_shape = label_outputs[0].shape
     kl = np.zeros(kl_shape)
@@ -120,7 +120,7 @@ def energy_scoring(non_softmaxed_outputs_path, base_name, temp=1000,
     for label in range(nr_labels):
         output_path = os.path.join(non_softmaxed_outputs_path, 
             '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-        output = utils.load_nifty(output_path)[0].astype(np.float16)
+        output = utils.load_nifty_no_metadata(output_path).astype(np.float16)
         outputs.append(output)
     outputs = np.stack(outputs, axis=0)
     outputs /= temp
@@ -138,7 +138,7 @@ def temp_scaled_uncertainty(non_softmaxed_outputs_path, base_name, temp=1000,
     for label in range(nr_labels):
         output_path = os.path.join(non_softmaxed_outputs_path, 
             '{}_{}_part_{}.nii.gz'.format(base_name, label, part))
-        output = utils.load_nifty(output_path)[0].astype(np.float16)
+        output = utils.load_nifty_no_metadata(output_path).astype(np.float16)
         outputs.append(output)
     outputs = np.stack(outputs, axis=0)
     outputs /= temp
@@ -211,7 +211,7 @@ def save_distances_subject(base_name, features_path, feature_names, estimators, 
     pickle.dump(distances, open(distances_full_path, "wb"))
 
 def estimate_multivariate_gaussian_save_distances(features_root_path, 
-    train_ds_names, store_ds_names, feature_names=None, files_name=''):
+    train_ds_names, store_ds_names, feature_names=None, files_name='', train_ds_cases=None):
     r"""Estimates a distribution using the training data and saves the distances
     for all other provided datasets.
     """
@@ -224,6 +224,13 @@ def estimate_multivariate_gaussian_save_distances(features_root_path,
         base_names = list(os.listdir(features_path))
         base_names = [x for x in base_names if 'pkl' in x and 
             'plans' not in x and 'distances' not in x]
+            
+        # Decide on a subset of cases to use for training, so val cases do not need
+        # to be separated previously.
+        if train_ds_cases is not None:
+            base_names = [x for x in base_names if x.replace('.pkl', '') in train_ds_cases[ds_name]]
+            assert len(base_names) > 0, 'There are no training cases'
+
         for base_name in base_names:
             full_path = os.path.join(features_path, base_name)
             features = pickle.load(open(full_path, 'rb'))
@@ -278,3 +285,4 @@ def estimate_multivariate_gaussian_save_distances(features_root_path,
                     feature_value = feature_value.flatten()
                     distances[patch_key][feature_name] = estimators[feature_name].get_mahalanobis(feature_value)
             pickle.dump(distances, open(distances_full_path, "wb"))
+            

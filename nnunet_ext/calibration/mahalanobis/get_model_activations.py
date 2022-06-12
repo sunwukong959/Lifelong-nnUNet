@@ -28,7 +28,7 @@ def get_act_seeker(model, hook_paths=[]):
     act_seeker.attach_hooks(model, hook_name_paths_dict)
     return act_seeker
 
-def extract_small_np_features(act_seeker, x=None, model=None, max_elems=10000):
+def extract_small_np_features(act_seeker, x=None, model=None, max_elems=1000):
     r"""Extracts hooked features. Applies average pooling to reduce dimensionality
     until there are less than max_elems and converts the reduced tensor to numpy.
     """
@@ -39,12 +39,15 @@ def extract_small_np_features(act_seeker, x=None, model=None, max_elems=10000):
         nr_elements = torch.numel(val)
         # Apply average pooling to reduce dimensionality
         while nr_elements > max_elems:
-            val = apply_pooling(val)
-            nr_elements = torch.numel(val)
+            try:
+                val = apply_pooling(val)
+                nr_elements = torch.numel(val)
+            except:
+                nr_elements = max_elems-1
         act_dict_after_pool[key] = val.detach().cpu().numpy()
     return act_dict_after_pool
 
-def load_or_extract_features(act_seeker, full_path, x=None, model=None, max_elems=10000):
+def load_or_extract_features(act_seeker, full_path, x=None, model=None, max_elems=1000):
     try:
         act_dict = pickle.load(open(full_path, 'rb'))
     except FileNotFoundError:

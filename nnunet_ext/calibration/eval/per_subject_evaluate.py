@@ -14,7 +14,7 @@ from nnunet_ext.calibration.eval.per_voxel_evaluate import comp_metrices_new, av
 def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path, 
     targets_path, outputs_path, non_softmaxed_outputs_path, MC_outputs_path, TTA_outputs_path,
     features_path, mahal_features, label=1, nr_labels=2, part=0, temperatures=[1, 10, 100], 
-    methods=None, dist_files_name=''):
+    methods=None, dist_files_name='', patch_size=[28, 256, 256]):
 
     if methods is None:
         methods = ['MaxSoftmax', 'MCDropout', 'TTA', 'Mahalanobis', 'TempScaling', 'KL', 'EnergyScoring']
@@ -38,7 +38,7 @@ def per_subject_eval_with_uncertainties(eval_path, base_names, predictions_path,
         print('\nGetting Mahalanobis uncertainties')
         spatial_mahal_uncertainty_dict = dict()
         for feature_key, feature_names in mahal_features.items():
-            spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, feature_names=feature_names, norm=False, dist_files_name=dist_files_name)
+            spatial_mahal_uncertainty_dict[feature_key] = per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key=feature_key, feature_names=feature_names, norm=False, dist_files_name=dist_files_name, patch_size=patch_size)
     
     if 'TempScaling' in methods:
         print('\nGetting Temperature-scaled uncertainties')
@@ -190,7 +190,7 @@ def per_subject_tta_uncertainty(eval_path, base_names, TTA_outputs_path, label=1
             json.dump(uncertainties_dict, json_file)
         return uncertainties_dict
 
-def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key, feature_names, norm=False, dist_files_name=''):
+def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, feature_key, feature_names, norm=False, dist_files_name='', patch_size=[28, 256, 256]):
     full_path = os.path.join(eval_path, 'mahalanobis_uncertainties_{}_{}_{}.json'.format(feature_key, norm, dist_files_name))
     try:
         with open(full_path, 'r') as json_file:
@@ -201,7 +201,7 @@ def per_subject_mahalanobis_uncertainty(eval_path, base_names, features_path, fe
             #try:
             uncertainties = []
             for feature_name in feature_names:
-                uncertainty = mahalanobis_uncertainty(features_path, base_name, feature_name, norm=norm, dist_files_name=dist_files_name)
+                uncertainty = mahalanobis_uncertainty(features_path, base_name, feature_name, norm=norm, dist_files_name=dist_files_name, patch_size=patch_size)
                 uncertainty = average_uncertainty(uncertainty)
                 uncertainties.append(uncertainty)
             uncertainties_dict[base_name] = float(sum(uncertainties))

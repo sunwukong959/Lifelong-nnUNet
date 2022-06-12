@@ -198,7 +198,7 @@ def nnUNet_estimate_gaussian(task_id, fold_ix, train_ds_names, store_ds_names,
 
 def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix, 
     mahal_features, targets_path=None, label=1, nr_labels=2, temperatures=[10], 
-    methods=None, dist_files_name='', model_type='3d_fullres', df_subdir=None):
+    methods=None, dist_files_name='', model_type='3d_fullres', df_subdir=None, patch_size=[28, 256, 256]):
     r"""Extract uncertainty values with several methods.
     :param pred_dataset_name: name of the dataset for which outputs are to be
         extracted (name of images stored in inputs_path)
@@ -233,7 +233,7 @@ def nnUNet_extract_uncertainties(pred_dataset_name, task_id, fold_ix,
         non_softmaxed_outputs_path=non_softmaxed_outputs_path, MC_outputs_path=MC_outputs_path, TTA_outputs_path=TTA_outputs_path,
         features_path=output_features_path, mahal_features=mahal_features,
         label=label, nr_labels=nr_labels, part=fold_ix, temperatures=temperatures, 
-        methods=methods, dist_files_name=dist_files_name)
+        methods=methods, dist_files_name=dist_files_name, patch_size=patch_size)
     if df_subdir is None:
         df.to_csv(os.path.join(eval_path, 'df.csv'), sep='\t')
     else:

@@ -9,6 +9,7 @@ import random
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 import nnunet_ext.calibration.eval.plotting as plotting
+from pers.utils.load_restore import pkl_load
 
 # If the metric is a "confidence", invert
 invert_uncertainty = ['MaxSoftmax', 'KL', 'TempScaling'] + ['TempScaling_{}'.format(t) for t in [1, 10, 100, 1000]]
@@ -21,6 +22,15 @@ def fetch_validation_cases(ds_names):
         val_subject_names += subjects
     return val_subject_names
 
+def fetch_test_validation_cases(ds_names, fold_ix=4):
+    val_subject_names = []
+    test_subject_names = []
+    for ds_name in ds_names:
+        splits = pkl_load('splits_final.pkl', path=os.path.join(os.environ['nnUNet_preprocessed'], ds_name))
+        val_subject_names += list(splits[fold_ix]['train'])
+        test_subject_names += list(splits[fold_ix]['val'])
+    return test_subject_names, val_subject_names
+
 def results_dict_to_df(df_items):
     r"""Convert again to DF for easier plotting
     """
@@ -31,18 +41,25 @@ def results_dict_to_df(df_items):
     return pd.DataFrame(df_data, columns=columns)
 
 def load_results(eval_storage_path, method='MaxSoftmax', id_val=[], id_test=[], ood=[], 
-    nr_val_cases=4):
+    nr_val_cases=4, exclude_fold_val_cases=False, df_subdir=None):
     r"""Fetches results in df form and build a joint dictionary"""
-    validation_cases = fetch_validation_cases(id_val)
+    if exclude_fold_val_cases:
+        test_cases, validation_cases = fetch_test_validation_cases(id_val)
+    else:
+        validation_cases = fetch_validation_cases(id_val)
     all_dfs_items = []
     for ds_key in id_val + id_test + ood:
-        eval_path = os.path.join(eval_storage_path, ds_key)
+        if df_subdir is None:
+            eval_path = os.path.join(eval_storage_path, ds_key)
+        else:
+            eval_path = os.path.join(eval_storage_path, ds_key, df_subdir)
         df = pd.read_csv(os.path.join(eval_path, 'df.csv'), sep='\t')
         df = df[df.Method == method]
         df[["Uncertainty", "Dice", "IoU"]] = df[["Uncertainty", "Dice", "IoU"]].apply(pd.to_numeric)
         df_items = list(df.set_index(df.Subject).T.to_dict().values())
         # Pick validation cases from the ID Test dataset
         if len(validation_cases) < 1:
+            raise
             validation_cases = [df_item['Subject'] for df_item in df_items]
             validation_cases = random.choices(validation_cases, k=nr_val_cases)
         # Make relevant modifications to the data structure
@@ -54,12 +71,17 @@ def load_results(eval_storage_path, method='MaxSoftmax', id_val=[], id_test=[], 
                 df_items[ix]['Dist'] = 'OOD'
             else:
                 df_items[ix]['Dist'] = 'ID'
-            if (ds_key in id_val) or (ds_key in id_test and df_items[ix]['Subject'] in validation_cases):
-                df_items[ix]['Split'] = 'Val'
+            if exclude_fold_val_cases:
+                if ds_key in id_val and df_items[ix]['Subject'] not in test_cases:
+                    df_items[ix]['Split'] = 'Val'
+                else:
+                    df_items[ix]['Split'] = 'Test'
             else:
-                df_items[ix]['Split'] = 'Test'
+                if (ds_key in id_val) or (ds_key in id_test and df_items[ix]['Subject'] in validation_cases):
+                    df_items[ix]['Split'] = 'Val'
+                else:
+                    df_items[ix]['Split'] = 'Test'
         all_dfs_items += df_items
-    val_items = [item for item in all_dfs_items if item['Split']=='Val']
     return all_dfs_items
 
 def get_tp_tn_fn_fp(items, boundary):
@@ -140,7 +162,8 @@ def avg_score_below_boundary(items, boundary, score='Dice'):
 def uncertainty_boundaries(items, mult=2):
     val_items = [item for item in items if item['Split'] == 'Val']
     uncertainties = [x['Uncertainty'] for x in val_items]
-    return min(uncertainties), mult*max(uncertainties)
+    min_b = max(-10000, min(uncertainties))
+    return min_b, mult*max(uncertainties)
 
 def set_normed_uncertainties(items):
     min_b, max_b = uncertainty_boundaries(items)
@@ -202,7 +225,7 @@ def calibration_error(items, metric='Dice', nr_bins=10):
     return ece
 
 def evaluate_uncertainty_method(eval_storage_path, results_name='results', 
-    methods=None, id_test=[], ood=[], id_val=[]):
+    methods=None, id_test=[], ood=[], id_val=[], exclude_fold_val_cases=False, df_subdir=None):
     r"""Returns a number of measures to assess OOD detection and calibration quality.
     """
     if methods is None:
@@ -211,7 +234,7 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
     for method in methods:
         #print('Method: {}'.format(method))
         items = load_results(eval_storage_path=eval_storage_path, method=method, 
-            id_val=id_val, id_test=id_test, ood=ood)
+            id_val=id_val, id_test=id_test, ood=ood, exclude_fold_val_cases=exclude_fold_val_cases, df_subdir=df_subdir)
 
         # Calibration error
         ece = calibration_error(items, metric='Dice')
@@ -232,16 +255,22 @@ def evaluate_uncertainty_method(eval_storage_path, results_name='results',
     # join results for all methods
     df = pd.DataFrame(df_data, columns=['Method', 'ECE', 'Error', 'FPR', 'AUROC',
         'Dice_MEAN', 'Dice_STD', 'IoU_MEAN', 'IoU_STD', 'Coverage', 'Boundary'])
-    df.to_csv(os.path.join(eval_storage_path, results_name+'.csv'), sep='\t')
+    if df_subdir is None:
+        df.to_csv(os.path.join(eval_storage_path, results_name+'.csv'), sep='\t')
+    else:
+        df_final_path = os.path.join(eval_storage_path, df_subdir)
+        if not os.path.exists(df_final_path):
+            os.makedirs(df_final_path)
+        df.to_csv(os.path.join(df_final_path, results_name+'.csv'), sep='\t')
     return df
 
 def plot_method_scatter(df_with_boundary, eval_storage_path, method, id_test, 
-    ood, id_val=[], better_ds_names=None, normalize=False, hue='Dist'):
+    ood, id_val=[], exclude_fold_val_cases=False, better_ds_names=None, normalize=False, hue='Dist', df_subdir=None):
     r"""Plot a scatter of the uncertainty against the Dice
     """
     boundary = float(df_with_boundary.loc[df_with_boundary['Method'] == method]['Boundary'])
     items = load_results(eval_storage_path=eval_storage_path, 
-        method=method, id_val=id_val, id_test=id_test, ood=ood)
+        method=method, id_val=id_val, id_test=id_test, ood=ood, exclude_fold_val_cases=exclude_fold_val_cases, df_subdir=df_subdir)
     if normalize and 'NormedUncertainty' not in items[0]:
         set_normed_uncertainties(items)
         boundary = norm_boundary(items, boundary)
@@ -255,6 +284,8 @@ def plot_method_scatter(df_with_boundary, eval_storage_path, method, id_test,
 
     df = results_dict_to_df(items)
 
+    if df_subdir is not None:
+        eval_storage_path = os.path.join(eval_storage_path, df_subdir)
     plotting.plot_uncertainty_performance(df, metric='Dice', hue=hue, 
         style='Split', boundary=boundary, 
         save_name='uncertainty_vs_dice_{}'.format(method), save_path=eval_storage_path, normalize=normalize)

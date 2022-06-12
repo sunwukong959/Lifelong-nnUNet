@@ -9,7 +9,7 @@ import seaborn as sns
 import pandas as pd
 
 def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name='uncertainty_vs_dice', boundary=0.5, save_path=None, figsize=(4, 2), x_norm=True, y_norm=True, ending='.png', normalize=False):
-
+    '''
     if hue == 'Dataset':
         # Green
         #my_palette={'Original': '#262626', 'Strong': "#005F73", 'Medium': "#3BE4E7", 'Weak': "#94D2BD"}
@@ -23,7 +23,7 @@ def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name
     else:
         my_palette=['#262626','#f4a261']
         markers={"ID": "o", "OOD": "^"}
-
+    '''
     if normalize:
         x_item = 'NormedUncertainty'
     else:
@@ -37,8 +37,8 @@ def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name
             style=hue,
             alpha=1.,
             s=15,
-            palette=my_palette,
-            markers=markers,
+            #palette=my_palette,
+            #markers=markers,
             edgecolor='gray',
             data=df)
     # Format titles
