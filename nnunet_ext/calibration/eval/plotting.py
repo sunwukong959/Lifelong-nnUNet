@@ -37,8 +37,8 @@ def plot_uncertainty_performance(df, metric, hue='Dist', style='Dist', save_name
             style=hue,
             alpha=1.,
             s=15,
-            #palette=my_palette,
-            #markers=markers,
+            palette=my_palette,
+            markers=markers,
             edgecolor='gray',
             data=df)
     # Format titles
