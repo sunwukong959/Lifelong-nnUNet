@@ -166,7 +166,7 @@ def _get_gaussian(patch_size, sigma_scale=1. / 8) -> np.ndarray:
     return gaussian_importance_map
 
 def mahalanobis_uncertainty(features_path, base_name, feature_name, 
-    patch_size=[28, 256, 256], use_gaussian=False, norm=False, dist_files_name=''):
+    patch_size=[28, 256, 256], use_gaussian=True, norm=False, dist_files_name=''):
     distances_full_path = os.path.join(features_path, base_name + dist_files_name + '_distances.pkl')
     feature_distances = pickle.load(open(distances_full_path, 'rb'))
     # Weight middle more heavily
