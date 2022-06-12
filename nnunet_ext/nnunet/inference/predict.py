@@ -225,7 +225,9 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
             _, filename = os.path.split(output_filename)
             filename = filename.split('.')[0]
             features_dir = [d for d in features_dirs if filename in os.path.split(d)[1]]
-            assert len(features_dir) == 1
+            # Can happen if the file name is included in a following file name (e.g. file_2, file_20)
+            if len(features_dir) > 1:
+                features_dir = [sorted(features_dir)[0]]
             features_dir = features_dir[0]
             for p in params:
                 trainer.load_checkpoint_ram(p, False)
