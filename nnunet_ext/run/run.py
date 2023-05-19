@@ -12,7 +12,7 @@ import nnunet_ext.run.run_training as run_training
 from nnunet_ext.utilities.helpful_functions import join_texts_with_char
 from nnunet_ext.calibration.uncertainty_calc import estimate_multivariate_gaussian_save_distances
 from nnunet_ext.calibration.eval.per_subject_evaluate import per_subject_eval_with_uncertainties
-from pers.utils.load_restore import pkl_load  # # package not in requirements.txt
+# # from pers.utils.load_restore import pkl_load  # # package not in requirements.txt
 
 results_path = os.environ.get('RESULTS_FOLDER')
 
